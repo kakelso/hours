@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hours of Prayer</title>
+    <style>
+        body {
+            font-family: "Georgia", serif; 
+            background-color: #fcfbf9;
+            color: #2c2c2c;
+            display: flex;
+            justify-content: center;
+            padding: 50px 20px;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            margin-top: 0;
+            color: #b45309;
+            text-align: center;
+            font-weight: normal;
+            margin-bottom: 5px;
+        }
+        
+        .controls {
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 20px;
+        }
+        #notify-btn {
+            background: none;
+            border: 1px solid #b45309;
+            color: #b45309;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        #notify-btn:hover {
+            background: #b45309;
+            color: white;
+        }
+        
+        #main-status {
+            text-align: center;
+            padding: 20px 15px 10px 15px;
+        }
+        #main-status h2 {
+            color: #1e3a8a;
+            font-size: 1.8em;
+            margin: 0 0 10px 0;
+            font-weight: normal;
+        }
+        #main-status p {
+            color: #6b7280;
+            font-style: italic;
+            margin: 0;
+        }
+        
+        details {
+            margin: 20px 0 30px 0;
+            text-align: center;
+        }
+        summary {
+            cursor: pointer;
+            color: #9ca3af;
+            font-size: 0.9em;
+            font-style: italic;
+            outline: none;
+        }
+        summary:hover {
+            color: #4b5563;
+        }
+        .drawer-content {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: left;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 0.9em;
+            color: #4b5563;
+        }
+        .drawer-content p {
+            margin: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+        .drawer-content p:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .schedule {
+            margin-top: 20px;
+        }
+        .schedule h3 {
+            text-align: center;
+            font-weight: normal;
+            color: #4b5563;
+            margin-bottom: 15px;
+        }
+        .hour-row {
+            display: flex;
+            flex-direction: column;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 1.05em;
+            transition: background-color 0.3s;
+        }
+        .hour-row:last-child {
+            border-bottom: none;
+        }
+        .hour-row.active {
+            background-color: #eff6ff;
+            border-left: 3px solid #3b82f6;
+            color: #1d4ed8;
+            font-weight: bold;
+        }
+        .hour-header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+        
+        .prayer-drawer {
+            margin: 10px 0 0 0;
+            text-align: left;
+        }
+        .prayer-drawer summary {
+            color: #b45309;
+            font-weight: normal;
+        }
+        .prayer-content {
+            margin-top: 10px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.6);
+            border-left: 3px solid #b45309;
+            font-style: italic;
+            color: #4b5563;
+            line-height: 1.6;
+            font-size: 0.95em;
+            border-radius: 0 4px 4px 0;
+            white-space: pre-line; 
+        }
+
+        .location-section {
+            text-align: center;
+            margin-top: 35px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.85em;
+            color: #9ca3af;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .location-section a {
+            color: #b45309;
+            text-decoration: none;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .location-section a:hover {
+            text-decoration: underline;
+        }
+        .search-box {
+            display: none;
+            margin-top: 15px;
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            text-align: left;
+        }
+        .search-box input {
+            padding: 8px;
+            width: calc(100% - 18px);
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-family: inherit;
+        }
+        .search-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .search-buttons button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            color: white;
+        }
+        .btn-search { background: #b45309; }
+        .btn-gps { background: #2563eb; }
+        
+        .search-results {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0 0;
+        }
+        .search-results li {
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            color: #4b5563;
+        }
+        .search-results li:last-child { border-bottom: none; }
+        .search-results li:hover { background: #eff6ff; color: #1d4ed8; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>Hours of Prayer</h1>
+        
+        <div class="controls" id="notification-controls">
+            <button id="notify-btn" onclick="requestNotifications()">Enable Notifications</button>
+        </div>
+        
+        <div id="main-status">
+            <p>Gathering daylight data...</p>
+        </div>
+
+        <details id="stats-drawer" style="display: none;">
+            <summary>View Modern Calculations</summary>
+            <div class="drawer-content" id="drawer-stats"></div>
+        </details>
+
+        <div class="schedule" id="schedule-list"></div>
+
+        <div class="location-section">
+            <span id="loc-display-text">Location: Determining...</span> 
+            <a onclick="toggleSearch()">(Change)</a>
+            
+            <div id="loc-search-box" class="search-box">
+                <input type="text" id="loc-input" placeholder="Search city (e.g. Rome, Italy)" onkeydown="if(event.key==='Enter') searchCity()">
+                <div class="search-buttons">
+                    <button class="btn-search" onclick="searchCity()">Search</button>
+                    <button class="btn-gps" onclick="useGPS()">Use Current GPS</button>
+                </div>
+                <ul id="search-results-list" class="search-results"></ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="prayers.js"></script>
+
+    <script>
+        let LAT = 27.9584; 
+        let LNG = -81.8910;
+        let TARGET_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone; 
+        
+        let sunriseDate, sunsetDate, tempHourMs, tempMinuteMs;
+        let lastActiveMarker = -999; 
+        
+        const names = ["Sunrise", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth", "Eleventh", "Twelfth"];
+
+        const canonicalMessages = {
+            1: "Morning prayer",
+            3: "The descent of the Holy Spirit",
+            6: "The hour of crucifixion",
+            9: "The hour of Christ's death",
+            12: "Evening prayer"
+        };
+
+        function checkNotificationStatus() {
+            const controls = document.getElementById('notification-controls');
+            if (!controls) return; 
+            
+            if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+                controls.remove(); 
+            }
+        }
+
+        async function requestNotifications() {
+            if (!("Notification" in window)) {
+                alert("This browser does not support desktop notifications.");
+                return;
+            }
+            const permission = await Notification.requestPermission();
+            const controls = document.getElementById('notification-controls');
+            if (controls) controls.remove(); 
+            
+            if (permission === 'granted') {
+                new Notification("Hours of Prayer", { body: "You will now receive alerts for prayer hours." });
+            }
+        }
+
+        function toggleSearch() {
+            const box = document.getElementById('loc-search-box');
+            box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        }
+
+        async function searchCity() {
+            const query = document.getElementById('loc-input').value;
+            if (!query) return;
+            
+            const list = document.getElementById('search-results-list');
+            list.innerHTML = `<li>Searching...</li>`;
+            
+            try {
+                const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`);
+                const data = await res.json();
+                
+                list.innerHTML = "";
+                if (!data.results) {
+                    list.innerHTML = `<li>No results found.</li>`;
+                    return;
+                }
+
+                data.results.forEach(city => {
+                    const li = document.createElement('li');
+                    const region = city.admin1 ? `, ${city.admin1}` : '';
+                    const country = city.country ? `, ${city.country}` : '';
+                    li.textContent = `${city.name}${region}${country}`;
+                    li.onclick = () => selectManualLocation(city.latitude, city.longitude, city.name, city.timezone);
+                    list.appendChild(li);
+                });
+            } catch (e) {
+                list.innerHTML = `<li>Search failed. Check connection.</li>`;
+            }
+        }
+
+        function selectManualLocation(lat, lng, cityName, timezone) {
+            LAT = lat;
+            LNG = lng;
+            TARGET_TZ = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+            
+            localStorage.setItem('manualLat', lat);
+            localStorage.setItem('manualLng', lng);
+            localStorage.setItem('manualTz', TARGET_TZ);
+            
+            document.getElementById('loc-search-box').style.display = 'none';
+            document.getElementById('search-results-list').innerHTML = '';
+            document.getElementById('loc-input').value = '';
+            
+            initializeApp(); 
+        }
+
+        function useGPS() {
+            localStorage.removeItem('manualLat');
+            localStorage.removeItem('manualLng');
+            localStorage.removeItem('manualTz');
+            TARGET_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            
+            document.getElementById('loc-search-box').style.display = 'none';
+            document.getElementById('loc-display-text').textContent = "Location: Locating GPS...";
+            requestLocationAndStart();
+        }
+
+        async function updateLocationDisplay() {
+            // NEW: Format the current time to extract the readable timezone abbreviation
+            let tzDisplay = TARGET_TZ;
+            try {
+                const parts = new Intl.DateTimeFormat('en-US', { timeZone: TARGET_TZ, timeZoneName: 'short' }).formatToParts(new Date());
+                const tzPart = parts.find(p => p.type === 'timeZoneName');
+                if (tzPart) tzDisplay = tzPart.value;
+            } catch (e) {}
+
+            try {
+                const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${LAT}&longitude=${LNG}&localityLanguage=en`);
+                const data = await res.json();
+                
+                let displayName = "Unknown Location";
+                if (data.city && data.principalSubdivision) displayName = `${data.city}, ${data.principalSubdivision}`;
+                else if (data.city) displayName = data.city;
+                else if (data.locality) displayName = data.locality;
+                
+                // NEW: Append the timezone display here
+                document.getElementById('loc-display-text').textContent = `Location: ${displayName} (${tzDisplay})`;
+            } catch (e) {
+                document.getElementById('loc-display-text').textContent = `Location: ${LAT.toFixed(2)}, ${LNG.toFixed(2)} (${tzDisplay})`;
+            }
+        }
+
+        function requestLocationAndStart() {
+            checkNotificationStatus();
+            
+            const savedLat = localStorage.getItem('manualLat');
+            const savedLng = localStorage.getItem('manualLng');
+            const savedTz = localStorage.getItem('manualTz');
+            
+            if (savedLat && savedLng && savedTz) {
+                LAT = parseFloat(savedLat);
+                LNG = parseFloat(savedLng);
+                TARGET_TZ = savedTz;
+                initializeApp();
+                return;
+            }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        LAT = position.coords.latitude;
+                        LNG = position.coords.longitude;
+                        TARGET_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                        initializeApp(); 
+                    },
+                    (error) => {
+                        console.log("GPS denied or failed. Using defaults.");
+                        initializeApp(); 
+                    },
+                    { timeout: 10000 }
+                );
+            } else {
+                initializeApp(); 
+            }
+        }
+
+        async function initializeApp() {
+            updateLocationDisplay(); 
+            
+            const now = new Date();
+            const tzDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TARGET_TZ }).format(now);
+
+            try {
+                const url = `https://api.sunrise-sunset.org/json?lat=${LAT}&lng=${LNG}&date=${tzDateStr}&formatted=0`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                sunriseDate = new Date(data.results.sunrise);
+                sunsetDate = new Date(data.results.sunset);
+
+                const totalDaylightMs = sunsetDate.getTime() - sunriseDate.getTime();
+                tempHourMs = totalDaylightMs / 12;
+                tempMinuteMs = tempHourMs / 60;
+
+                document.getElementById('stats-drawer').style.display = 'block';
+
+                buildSchedule();
+                setInterval(tick, 1000);
+                tick(); 
+
+            } catch (error) {
+                document.getElementById('main-status').innerHTML = `<p>Could not read the sky. Please check your connection.</p>`;
+            }
+        }
+
+        function buildSchedule() {
+            let html = `<h3>Today's Pattern</h3>`;
+            
+            const now = new Date();
+            const startOfYear = new Date(now.getFullYear(), 0, 0);
+            const diff = (now - startOfYear) + ((startOfYear.getTimezoneOffset() - now.getTimezoneOffset()) * 60 * 1000);
+            const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TARGET_TZ };
+            
+            for (let i = 0; i <= 12; i++) {
+                const markerMs = i * tempHourMs;
+                const markerTime = new Date(sunriseDate.getTime() + markerMs);
+                const timeStr = markerTime.toLocaleTimeString([], timeOptions);
+                
+                let rowLabel = i === 0 ? "Sunrise" : `The ${names[i]} Hour`;
+                if (i === 12) rowLabel = "The Twelfth Hour (Sunset)";
+
+                html += `
+                    <div class="hour-row" id="row-${i}">
+                        <div class="hour-header">
+                            <span>${rowLabel}</span>
+                            <span>${timeStr}</span>
+                        </div>
+                `;
+
+                if (typeof prayerLibrary !== 'undefined' && prayerLibrary[i]) {
+                    const prayers = prayerLibrary[i];
+                    const selectedPrayer = prayers[dayOfYear % prayers.length];
+                    
+                    html += `
+                        <details class="prayer-drawer" id="prayer-drawer-${i}">
+                            <summary>View Prayer</summary>
+                            <div class="prayer-content">${selectedPrayer}</div>
+                        </details>
+                    `;
+                }
+
+                html += `</div>`;
+            }
+            document.getElementById('schedule-list').innerHTML = html;
+        }
+
+        function tick() {
+            const now = new Date();
+            let statusHtml = "";
+            let activeMarker = -1;
+            
+            const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TARGET_TZ };
+            
+            const targetHourStr = new Intl.DateTimeFormat('en-US', { timeZone: TARGET_TZ, hour: 'numeric', hourCycle: 'h23' }).format(now);
+            const targetHour = parseInt(targetHourStr, 10);
+
+            if (now.getTime() < sunriseDate.getTime()) {
+                if (targetHour < 1) {
+                    statusHtml = `<h2>Awaiting the Dawn</h2><p>Lord, now let your servant depart in peace</p>`;
+                } else {
+                    statusHtml = `<h2>Awaiting the Dawn</h2>`; 
+                }
+            } else if (now.getTime() > sunsetDate.getTime() + (15 * tempMinuteMs)) {
+                statusHtml = `<h2>The Sun Has Set</h2><p>Lord, now let your servant depart in peace</p>`;
+            } else {
+                const msSinceSunrise = now.getTime() - sunriseDate.getTime();
+                const tm = msSinceSunrise / tempMinuteMs;
+                let nearestHour = Math.round(tm / 60);
+                let diff = tm - (nearestHour * 60); 
+
+                if (diff >= -15 && diff < 15) {
+                    activeMarker = nearestHour;
+                    if (nearestHour === 0) {
+                        statusHtml = `<h2>The sun has risen</h2><p>Sunrise was at ${sunriseDate.toLocaleTimeString([], timeOptions)}</p>`;
+                    } else {
+                        const customMessage = canonicalMessages[nearestHour] || "Pray without ceasing";
+                        statusHtml = `<h2>The ${names[nearestHour]} Hour</h2><p>${customMessage}</p>`;
+                    }
+                } else if (diff >= 15) {
+                    let currentName = nearestHour === 0 ? "sunrise" : `the ${names[nearestHour].toLowerCase()} hour`;
+                    let nextName = `the ${names[nearestHour + 1].toLowerCase()} hour`;
+                    statusHtml = `<h2>Between ${currentName} and ${nextName}</h2><p>Pray without ceasing</p>`;
+                } else if (diff < -15) {
+                    let prevName = nearestHour === 1 ? "sunrise" : `the ${names[nearestHour - 1].toLowerCase()} hour`;
+                    let currentName = `the ${names[nearestHour].toLowerCase()} hour`;
+                    statusHtml = `<h2>Between ${prevName} and ${currentName}</h2><p>Pray without ceasing</p>`;
+                }
+            }
+            document.getElementById('main-status').innerHTML = statusHtml;
+
+            const drawer = document.getElementById('stats-drawer');
+            if (drawer.open) {
+                const totalDaylightMs = sunsetDate.getTime() - sunriseDate.getTime();
+                const totalMins = Math.floor(totalDaylightMs / 60000);
+                const totalSecs = Math.floor((totalDaylightMs % 60000) / 1000);
+                const hourMins = Math.floor(tempHourMs / 60000);
+                const hourSecs = Math.floor((tempHourMs % 60000) / 1000);
+
+                let statsHtml = `<p><strong>Total Daylight Today:</strong> ${totalMins} minutes and ${totalSecs} seconds</p>
+                                 <p><strong>One Daylight Hour:</strong> ${hourMins} minutes and ${hourSecs} seconds</p>`;
+                
+                if (now.getTime() >= sunriseDate.getTime()) {
+                    const elapsedMs = now.getTime() - sunriseDate.getTime();
+                    const elapsedMins = Math.floor(elapsedMs / 60000);
+                    const elapsedSecs = Math.floor((elapsedMs % 60000) / 1000);
+                    statsHtml += `<p><strong>Time Since Sunrise:</strong> ${elapsedMins} minutes and ${elapsedSecs} seconds</p>`;
+                } else {
+                    statsHtml += `<p><strong>Time Since Sunrise:</strong> The sun has not yet risen.</p>`;
+                }
+                
+                document.getElementById('drawer-stats').innerHTML = statsHtml;
+            }
+
+            for (let i = 0; i <= 12; i++) {
+                const row = document.getElementById(`row-${i}`);
+                if (row) {
+                    row.className = (i === activeMarker) ? "hour-row active" : "hour-row";
+                }
+            }
+            
+            if (activeMarker !== lastActiveMarker) {
+                if (activeMarker !== -1) {
+                    const newDrawer = document.getElementById(`prayer-drawer-${activeMarker}`);
+                    if (newDrawer) {
+                        newDrawer.open = true;
+                    }
+                    
+                    if (Notification.permission === 'granted' && lastActiveMarker !== -999) {
+                        let title = activeMarker === 0 ? "Sunrise" : `The ${names[activeMarker]} Hour`;
+                        if (activeMarker === 12) title = "The Twelfth Hour (Sunset)";
+                        
+                        let bodyMessage = canonicalMessages[activeMarker] || "Pray without ceasing";
+                        
+                        new Notification(title, { 
+                            body: bodyMessage,
+                            icon: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Sun_icon.svg/120px-Sun_icon.svg.png"
+                        });
+                    }
+                }
+                lastActiveMarker = activeMarker;
+            }
+        }
+    </script>
+</body>
+</html>
