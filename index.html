@@ -26,8 +26,8 @@
             --text-main: #2c2c2c;
             --text-muted: #6b7280;
             --text-light: #9ca3af;
-            --text-accent1: #1e3a8a;
-            --text-accent2: #15803d;
+            --text-accent1: #1e3a8a; /* Deep navy */
+            --text-accent2: #15803d; /* Forest green */
             --border-color: #e5e7eb;
             --border-light: #f3f4f6;
             --highlight-bg: #eff6ff;
@@ -45,11 +45,11 @@
             --text-main: #e5e5e5;
             --text-muted: #a3a3a3;
             --text-light: #737373;
-            --text-accent1: #93c5fd; /* Light blue for dark backgrounds */
+            --text-accent1: #93c5fd; /* Light pastel blue */
             --text-accent2: #4ade80; /* Soft sage green */
             --border-color: #333333;
             --border-light: #2a2a2a;
-            --highlight-bg: rgba(59, 130, 246, 0.15); /* Subtle blue tint */
+            --highlight-bg: rgba(59, 130, 246, 0.15); 
             --highlight-border: #3b82f6;
             --highlight-text: #93c5fd;
             --drawer-bg: #262626;
@@ -306,12 +306,24 @@
             <p>Gathering daylight data...</p>
         </div>
 
+        <!-- MOVED UP: About Drawer -->
+        <details id="about-drawer">
+            <summary>About this App</summary>
+            <div class="drawer-content">
+                <p><strong>Welcome to Hours of Prayer.</strong></p>
+                <p>I created this app because I wanted a reminder to pray the traditional hours of the day, as the ancient church did. They prayed five times during the day: at sunrise, the third hour (Terce), the sixth hour (Sext), the ninth hour (None), and sunset (Vespers). But what they meant by "hour" was quite different from what we mean today.</p>
+                <p>In the ancient Mediterranean world, an hour was not a fixed length of time; instead, each day consisted of exactly twelve daylight hours. This meant that during summer, the twelve hours of daylight were longer, and during winter, they were shorter. Hours of Prayer measures these "solar hours," based on your location, and reminds you to pray at the five set times of the day. </p>
+				<p>The app is not meant to give you <em>precise</em> times to pray; the ancients didn't have a minute hand on their sundials. Instead, it's meant to help your day be shaped by prayer.</p>
+            </div>
+        </details>
+
+        <div class="schedule" id="schedule-list"></div>
+
+        <!-- MOVED DOWN: Modern Calculations Drawer -->
         <details id="stats-drawer" style="display: none;">
             <summary>View Modern Calculations</summary>
             <div class="drawer-content" id="drawer-stats"></div>
         </details>
-
-        <div class="schedule" id="schedule-list"></div>
 
         <div class="location-section">
             <div>
@@ -362,17 +374,14 @@
             applyTheme(theme);
         }
 
-        // Set the dropdown to match the saved setting
-        document.getElementById('theme-selector').value = savedTheme; // uses savedTheme from the <head> script
+        document.getElementById('theme-selector').value = savedTheme; 
         
-        // Listen for OS-level theme changes (if set to Auto)
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
             const currentSetting = localStorage.getItem('manualTheme') || 'system';
             if (currentSetting === 'system') {
                 applyTheme('system');
             }
         });
-
 
         // --- LOCATION & SCHEDULING LOGIC ---
         let LAT = 27.9584; 
@@ -691,7 +700,18 @@
                 const hourMins = Math.floor(tempHourMs / 60000);
                 const hourSecs = Math.floor((tempHourMs % 60000) / 1000);
 
-                let statsHtml = `<p><strong>Total Daylight Today:</strong> ${totalMins} minutes and ${totalSecs} seconds</p>
+                // NEW: Calculate Solar Noon and format the times
+                const solarNoonDate = new Date(sunriseDate.getTime() + (totalDaylightMs / 2));
+                const drawerTimeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TARGET_TZ };
+                const sunriseStr = sunriseDate.toLocaleTimeString([], drawerTimeOptions);
+                const solarNoonStr = solarNoonDate.toLocaleTimeString([], drawerTimeOptions);
+                const sunsetStr = sunsetDate.toLocaleTimeString([], drawerTimeOptions);
+
+                // NEW: Added the three times to the top of the drawer
+                let statsHtml = `<p><strong>Sunrise:</strong> ${sunriseStr}</p>
+                                 <p><strong>Solar Noon:</strong> ${solarNoonStr}</p>
+                                 <p><strong>Sunset:</strong> ${sunsetStr}</p>
+                                 <p><strong>Total Daylight Today:</strong> ${totalMins} minutes and ${totalSecs} seconds</p>
                                  <p><strong>One Daylight Hour:</strong> ${hourMins} minutes and ${hourSecs} seconds</p>`;
                 
                 if (now.getTime() >= sunriseDate.getTime()) {
