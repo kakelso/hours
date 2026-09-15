@@ -267,6 +267,10 @@
         let sunriseDate, sunsetDate, tempHourMs, tempMinuteMs;
         let lastActiveMarker = -999; 
         
+        // NEW variables for safety checks
+        let isAppInitialized = false;
+        let tickInterval; 
+        
         const names = ["Sunrise", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth", "Eleventh", "Twelfth"];
 
         const canonicalMessages = {
@@ -351,19 +355,35 @@
             initializeApp(); 
         }
 
+        // NEW: We now save the GPS to memory just like a manual city!
         function useGPS() {
-            localStorage.removeItem('manualLat');
-            localStorage.removeItem('manualLng');
-            localStorage.removeItem('manualTz');
-            TARGET_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            
             document.getElementById('loc-search-box').style.display = 'none';
             document.getElementById('loc-display-text').textContent = "Location: Locating GPS...";
-            requestLocationAndStart();
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        LAT = position.coords.latitude;
+                        LNG = position.coords.longitude;
+                        TARGET_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                        
+                        localStorage.setItem('manualLat', LAT);
+                        localStorage.setItem('manualLng', LNG);
+                        localStorage.setItem('manualTz', TARGET_TZ);
+                        
+                        initializeApp();
+                    },
+                    (error) => {
+                        alert("GPS access denied. Please check your browser permissions.");
+                        document.getElementById('loc-display-text').textContent = "Location: Failed";
+                        initializeApp();
+                    },
+                    { timeout: 10000 }
+                );
+            }
         }
 
         async function updateLocationDisplay() {
-            // NEW: Format the current time to extract the readable timezone abbreviation
             let tzDisplay = TARGET_TZ;
             try {
                 const parts = new Intl.DateTimeFormat('en-US', { timeZone: TARGET_TZ, timeZoneName: 'short' }).formatToParts(new Date());
@@ -380,7 +400,6 @@
                 else if (data.city) displayName = data.city;
                 else if (data.locality) displayName = data.locality;
                 
-                // NEW: Append the timezone display here
                 document.getElementById('loc-display-text').textContent = `Location: ${displayName} (${tzDisplay})`;
             } catch (e) {
                 document.getElementById('loc-display-text').textContent = `Location: ${LAT.toFixed(2)}, ${LNG.toFixed(2)} (${tzDisplay})`;
@@ -402,26 +421,42 @@
                 return;
             }
 
+            // NEW: The 2.5 Second Failsafe
+            const failsafe = setTimeout(() => {
+                if (!isAppInitialized) {
+                    console.log("Browser suppressed GPS. Falling back to default.");
+                    initializeApp();
+                }
+            }, 2500);
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
+                        clearTimeout(failsafe);
                         LAT = position.coords.latitude;
                         LNG = position.coords.longitude;
                         TARGET_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                        
+                        localStorage.setItem('manualLat', LAT);
+                        localStorage.setItem('manualLng', LNG);
+                        localStorage.setItem('manualTz', TARGET_TZ);
+                        
                         initializeApp(); 
                     },
                     (error) => {
-                        console.log("GPS denied or failed. Using defaults.");
-                        initializeApp(); 
+                        clearTimeout(failsafe);
+                        if (!isAppInitialized) initializeApp(); 
                     },
                     { timeout: 10000 }
                 );
             } else {
+                clearTimeout(failsafe);
                 initializeApp(); 
             }
         }
 
         async function initializeApp() {
+            isAppInitialized = true; // Tells the failsafe to stand down
             updateLocationDisplay(); 
             
             const now = new Date();
@@ -442,7 +477,10 @@
                 document.getElementById('stats-drawer').style.display = 'block';
 
                 buildSchedule();
-                setInterval(tick, 1000);
+                
+                // NEW: Clear the old clock loop before starting a new one
+                if (tickInterval) clearInterval(tickInterval);
+                tickInterval = setInterval(tick, 1000);
                 tick(); 
 
             } catch (error) {
@@ -454,9 +492,7 @@
             let html = `<h3>Today's Pattern</h3>`;
             
             const now = new Date();
-            // NEW: Get the current day of the week (0 = Sunday, 1 = Monday, ... 6 = Saturday)
             const dayOfWeek = now.getDay();
-            
             const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TARGET_TZ };
             
             for (let i = 0; i <= 12; i++) {
@@ -477,7 +513,6 @@
 
                 if (typeof prayerLibrary !== 'undefined' && prayerLibrary[i]) {
                     const prayers = prayerLibrary[i];
-                    // NEW: Rotate based on the day of the week!
                     const selectedPrayer = prayers[dayOfWeek % prayers.length];
                     
                     html += `
@@ -589,6 +624,8 @@
                 lastActiveMarker = activeMarker;
             }
         }
+
+        requestLocationAndStart();
     </script>
 </body>
 </html>
