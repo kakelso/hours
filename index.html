@@ -4,30 +4,80 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hours of Prayer</title>
+    
     <!-- Standard Favicon for browser tabs -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='45' r='28' fill='%23f59e0b' /><rect x='43' y='15' width='14' height='70' fill='%23451a03' rx='3' /><rect x='25' y='35' width='50' height='14' fill='%23451a03' rx='3' /></svg>">
     <!-- Apple Touch Icon for iPhone/Android Home Screens -->
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23fcfbf9'/><circle cx='50' cy='45' r='28' fill='%23f59e0b' /><rect x='43' y='15' width='14' height='70' fill='%23451a03' rx='3' /><rect x='25' y='35' width='50' height='14' fill='%23451a03' rx='3' /></svg>">
+    
+    <!-- Prevents screen flash by applying theme immediately -->
+    <script>
+        const savedTheme = localStorage.getItem('manualTheme') || 'system';
+        if (savedTheme === 'dark' || (savedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark-mode');
+        }
+    </script>
+
     <style>
+        /* --- LIGHT THEME VARIABLES (Default) --- */
+        :root {
+            --bg-body: #fcfbf9;
+            --bg-card: white;
+            --text-main: #2c2c2c;
+            --text-muted: #6b7280;
+            --text-light: #9ca3af;
+            --text-accent1: #b45309;
+            --text-accent2: #1e3a8a;
+            --border-color: #e5e7eb;
+            --border-light: #f3f4f6;
+            --highlight-bg: #eff6ff;
+            --highlight-border: #3b82f6;
+            --highlight-text: #1d4ed8;
+            --drawer-bg: #f9fafb;
+            --prayer-bg: rgba(255, 255, 255, 0.6);
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        /* --- DARK THEME VARIABLES --- */
+        :root.dark-mode {
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --text-main: #e5e5e5;
+            --text-muted: #a3a3a3;
+            --text-light: #737373;
+            --text-accent1: #d97706; /* Slightly brighter orange for dark backgrounds */
+            --text-accent2: #93c5fd; /* Light blue */
+            --border-color: #333333;
+            --border-light: #2a2a2a;
+            --highlight-bg: rgba(59, 130, 246, 0.15); /* Subtle blue tint */
+            --highlight-border: #3b82f6;
+            --highlight-text: #93c5fd;
+            --drawer-bg: #262626;
+            --prayer-bg: rgba(0, 0, 0, 0.2);
+            --shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
         body {
             font-family: "Georgia", serif; 
-            background-color: #fcfbf9;
-            color: #2c2c2c;
+            background-color: var(--bg-body);
+            color: var(--text-main);
             display: flex;
             justify-content: center;
             padding: 50px 20px;
+            transition: background-color 0.3s, color 0.3s;
         }
         .card {
-            background: white;
+            background: var(--bg-card);
             padding: 30px;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            box-shadow: var(--shadow);
             max-width: 500px;
             width: 100%;
+            transition: background-color 0.3s, box-shadow 0.3s;
         }
         h1 {
             margin-top: 0;
-            color: #b45309;
+            color: var(--text-accent1);
             text-align: center;
             font-weight: normal;
             margin-bottom: 5px;
@@ -35,13 +85,13 @@
         
         .controls {
             text-align: center;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border-color);
             padding-bottom: 20px;
         }
         #notify-btn {
             background: none;
-            border: 1px solid #b45309;
-            color: #b45309;
+            border: 1px solid var(--text-accent1);
+            color: var(--text-accent1);
             padding: 5px 12px;
             border-radius: 20px;
             font-size: 0.8em;
@@ -50,8 +100,8 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         #notify-btn:hover {
-            background: #b45309;
-            color: white;
+            background: var(--text-accent1);
+            color: var(--bg-card);
         }
         
         #main-status {
@@ -59,13 +109,13 @@
             padding: 20px 15px 10px 15px;
         }
         #main-status h2 {
-            color: #1e3a8a;
+            color: var(--text-accent2);
             font-size: 1.8em;
             margin: 0 0 10px 0;
             font-weight: normal;
         }
         #main-status p {
-            color: #6b7280;
+            color: var(--text-muted);
             font-style: italic;
             margin: 0;
         }
@@ -76,28 +126,28 @@
         }
         summary {
             cursor: pointer;
-            color: #9ca3af;
+            color: var(--text-light);
             font-size: 0.9em;
             font-style: italic;
             outline: none;
         }
         summary:hover {
-            color: #4b5563;
+            color: var(--text-muted);
         }
         .drawer-content {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
+            background: var(--drawer-bg);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 15px;
             margin-top: 15px;
             text-align: left;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-size: 0.9em;
-            color: #4b5563;
+            color: var(--text-main);
         }
         .drawer-content p {
             margin: 8px 0;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border-color);
             padding-bottom: 8px;
         }
         .drawer-content p:last-child {
@@ -112,14 +162,14 @@
         .schedule h3 {
             text-align: center;
             font-weight: normal;
-            color: #4b5563;
+            color: var(--text-muted);
             margin-bottom: 15px;
         }
         .hour-row {
             display: flex;
             flex-direction: column;
             padding: 12px 15px;
-            border-bottom: 1px solid #f3f4f6;
+            border-bottom: 1px solid var(--border-light);
             font-size: 1.05em;
             transition: background-color 0.3s;
         }
@@ -127,9 +177,9 @@
             border-bottom: none;
         }
         .hour-row.active {
-            background-color: #eff6ff;
-            border-left: 3px solid #3b82f6;
-            color: #1d4ed8;
+            background-color: var(--highlight-bg);
+            border-left: 3px solid var(--highlight-border);
+            color: var(--highlight-text);
             font-weight: bold;
         }
         .hour-header {
@@ -143,16 +193,16 @@
             text-align: left;
         }
         .prayer-drawer summary {
-            color: #b45309;
+            color: var(--text-accent1);
             font-weight: normal;
         }
         .prayer-content {
             margin-top: 10px;
             padding: 15px;
-            background: rgba(255, 255, 255, 0.6);
-            border-left: 3px solid #b45309;
+            background: var(--prayer-bg);
+            border-left: 3px solid var(--text-accent1);
             font-style: italic;
-            color: #4b5563;
+            color: var(--text-main);
             line-height: 1.6;
             font-size: 0.95em;
             border-radius: 0 4px 4px 0;
@@ -163,13 +213,16 @@
             text-align: center;
             margin-top: 35px;
             padding-top: 15px;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid var(--border-color);
             font-size: 0.85em;
-            color: #9ca3af;
+            color: var(--text-light);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
         .location-section a {
-            color: #b45309;
+            color: var(--text-accent1);
             text-decoration: none;
             cursor: pointer;
             margin-left: 5px;
@@ -177,19 +230,34 @@
         .location-section a:hover {
             text-decoration: underline;
         }
+        
+        /* Theme Dropdown Styles */
+        .theme-select {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 2px 5px;
+            font-family: inherit;
+            font-size: 0.95em;
+            margin-left: 5px;
+        }
+
         .search-box {
             display: none;
             margin-top: 15px;
-            background: #f9fafb;
+            background: var(--drawer-bg);
             padding: 15px;
             border-radius: 8px;
-            border: 1px solid #e5e7eb;
+            border: 1px solid var(--border-color);
             text-align: left;
         }
         .search-box input {
             padding: 8px;
             width: calc(100% - 18px);
-            border: 1px solid #d1d5db;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-main);
             border-radius: 4px;
             margin-bottom: 10px;
             font-family: inherit;
@@ -207,8 +275,8 @@
             font-family: inherit;
             color: white;
         }
-        .btn-search { background: #b45309; }
-        .btn-gps { background: #2563eb; }
+        .btn-search { background: var(--text-accent1); }
+        .btn-gps { background: var(--highlight-border); }
         
         .search-results {
             list-style: none;
@@ -217,12 +285,12 @@
         }
         .search-results li {
             padding: 10px;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border-color);
             cursor: pointer;
-            color: #4b5563;
+            color: var(--text-main);
         }
         .search-results li:last-child { border-bottom: none; }
-        .search-results li:hover { background: #eff6ff; color: #1d4ed8; }
+        .search-results li:hover { background: var(--highlight-bg); color: var(--highlight-text); }
     </style>
 </head>
 <body>
@@ -246,8 +314,18 @@
         <div class="schedule" id="schedule-list"></div>
 
         <div class="location-section">
-            <span id="loc-display-text">Location: Determining...</span> 
-            <a onclick="toggleSearch()">(Change)</a>
+            <div>
+                <span id="loc-display-text">Location: Determining...</span> 
+                <a onclick="toggleSearch()">(Change)</a>
+            </div>
+            <div>
+                Theme: 
+                <select id="theme-selector" class="theme-select" onchange="changeTheme(this.value)">
+                    <option value="system">Auto</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
             
             <div id="loc-search-box" class="search-box">
                 <input type="text" id="loc-input" placeholder="Search city (e.g. Rome, Italy)" onkeydown="if(event.key==='Enter') searchCity()">
@@ -264,6 +342,39 @@
     <script src="prayers.js"></script>
 
     <script>
+        // --- THEME LOGIC ---
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+            } else if (theme === 'light') {
+                document.documentElement.classList.remove('dark-mode');
+            } else {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.classList.add('dark-mode');
+                } else {
+                    document.documentElement.classList.remove('dark-mode');
+                }
+            }
+        }
+
+        function changeTheme(theme) {
+            localStorage.setItem('manualTheme', theme);
+            applyTheme(theme);
+        }
+
+        // Set the dropdown to match the saved setting
+        document.getElementById('theme-selector').value = savedTheme; // uses savedTheme from the <head> script
+        
+        // Listen for OS-level theme changes (if set to Auto)
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            const currentSetting = localStorage.getItem('manualTheme') || 'system';
+            if (currentSetting === 'system') {
+                applyTheme('system');
+            }
+        });
+
+
+        // --- LOCATION & SCHEDULING LOGIC ---
         let LAT = 27.9584; 
         let LNG = -81.8910;
         let TARGET_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone; 
@@ -271,7 +382,6 @@
         let sunriseDate, sunsetDate, tempHourMs, tempMinuteMs;
         let lastActiveMarker = -999; 
         
-        // NEW variables for safety checks
         let isAppInitialized = false;
         let tickInterval; 
         
@@ -359,7 +469,6 @@
             initializeApp(); 
         }
 
-        // NEW: We now save the GPS to memory just like a manual city!
         function useGPS() {
             document.getElementById('loc-search-box').style.display = 'none';
             document.getElementById('loc-display-text').textContent = "Location: Locating GPS...";
@@ -425,7 +534,6 @@
                 return;
             }
 
-            // NEW: The 2.5 Second Failsafe
             const failsafe = setTimeout(() => {
                 if (!isAppInitialized) {
                     console.log("Browser suppressed GPS. Falling back to default.");
@@ -460,7 +568,7 @@
         }
 
         async function initializeApp() {
-            isAppInitialized = true; // Tells the failsafe to stand down
+            isAppInitialized = true; 
             updateLocationDisplay(); 
             
             const now = new Date();
@@ -482,7 +590,6 @@
 
                 buildSchedule();
                 
-                // NEW: Clear the old clock loop before starting a new one
                 if (tickInterval) clearInterval(tickInterval);
                 tickInterval = setInterval(tick, 1000);
                 tick(); 
