@@ -83,7 +83,16 @@
             margin-bottom: 5px;
         }
         
-        .controls {
+        .tagline {
+            text-align: center;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+        }
+		
+		.controls {
             text-align: center;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 20px;
@@ -206,7 +215,7 @@
             line-height: 1.6;
             font-size: 0.95em;
             border-radius: 0 4px 4px 0;
-            white-space: pre-line; 
+            white-space: pre-wrap; 
         }
 
         .location-section {
@@ -313,6 +322,7 @@
 
     <div class="card">
         <h1>Hours of Prayer</h1>
+		<p class="tagline">Pray like the ancients.</p>
         
         <div class="controls" id="notification-controls">
             <button id="notify-btn" onclick="requestNotifications()">Enable Notifications</button>
@@ -329,7 +339,7 @@
                 <p><strong>Welcome to Hours of Prayer.</strong></p>
                 <p><em>I created this app because I wanted a reminder to pray the traditional hours of the day, as the ancient church did. They prayed five times during the day: at sunrise, the third hour (Terce), the sixth hour (Sext), the ninth hour (None), and sunset (Vespers). But what they meant by "hour" was quite different from what we mean today.</em></p>
                 <p><em>In the ancient Mediterranean world, an hour was not a fixed length of time; instead, each day consisted of exactly twelve daylight hours. This meant that during summer, the twelve hours of daylight were longer, and during winter, they were shorter. Hours of Prayer measures these "solar hours," based on your location, and reminds you to pray at the five set times of the day.</em></p>
-				<p><em>The app is not meant to give you </em>precise<em> times to pray; the ancients didn't have a minute hand on their sundials. Instead, it's meant to help your day be shaped by prayer.</em></p>
+				<p><em>The app is not meant to give you </em>precise<em> times to pray; the ancients didn't have a minute hand on their sundials. Instead, it's meant to help your day be shaped by prayer. I recommend using it as a suplement to the Daily Office.</em></p>
             </div>
         </details>
 
