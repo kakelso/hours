@@ -57,7 +57,7 @@ const prayerLibrary = {
 		
 		`O eternal Lord God, you hold all souls in life: Shed forth upon your whole Church in Paradise and on earth the bright beams of your light and heavenly comfort; and grant that we, following the good example of those who have loved and served you here and are now at rest, may enter with them into the fullness of your unending joy; through Jesus Christ our Lord. Amen.`, // Thursday
 		
-		`Hasten, O Father, the coming of your kingdom; and grant that we your servants, who now live by faith, may with joy behold your Son at his coming in glorious majesty; even Jesus Christ, our only Mediator and Advocate. Amen.` // Friday
+		`Hasten, O Father, the coming of your kingdom; and grant that we your servants, who now live by faith, may with joy behold your Son at his coming in glorious majesty; even Jesus Christ, our only Mediator and Advocate. Amen.`, // Friday
 		
 		`O Almighty God, you pour out on all who desire it the spirit of grace and of supplication: Deliver us, when we draw near to you, from coldness of heart and wanderings of mind, that with steadfast thoughts and kindled affections we may worship you in spirit and in truth; through Jesus Christ our Lord. Amen.` // Saturday
     ],
