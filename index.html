@@ -612,14 +612,53 @@
             const now = new Date();
             const tzDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TARGET_TZ }).format(now);
 
-            try {
-                const url = `https://api.sunrise-sunset.org/json?lat=${LAT}&lng=${LNG}&date=${tzDateStr}&formatted=0`;
-                const response = await fetch(url);
-                const data = await response.json();
+            let fetchSuccess = false;
 
+            try {
+                // ATTEMPT 1: Primary API
+                const url = `https://api.sunrise-sunset.org/json?lat=${LAT}&lng=${LNG}&date=${tzDateStr}&formatted=0`;
+                
+                // Create a 3.5-second fuse so the app doesn't hang if the server is a "black hole"
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3500);
+                
+                const response = await fetch(url, { signal: controller.signal });
+                
+                // Disarm the fuse if the server responds in time!
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error("Primary API returned an error");
+                
+                const data = await response.json();
                 sunriseDate = new Date(data.results.sunrise);
                 sunsetDate = new Date(data.results.sunset);
+                fetchSuccess = true;
 
+            } catch (primaryError) {
+                console.log("Primary API failed or timed out. Switching to backup...");
+                
+                try {
+                    // ATTEMPT 2: Backup API (Open-Meteo)
+                    const backupUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}&daily=sunrise,sunset&timezone=UTC&forecast_days=1`;
+                    const backupResponse = await fetch(backupUrl);
+                    
+                    if (!backupResponse.ok) throw new Error("Backup API down");
+                    const backupData = await backupResponse.json();
+
+                    // Open-Meteo formats UTC time slightly differently, so we append "Z" to correct it
+                    sunriseDate = new Date(backupData.daily.sunrise[0] + "Z");
+                    sunsetDate = new Date(backupData.daily.sunset[0] + "Z");
+                    fetchSuccess = true;
+
+                } catch (backupError) {
+                    // Both APIs failed
+                    console.error("Backup also failed:", backupError);
+                    document.getElementById('main-status').innerHTML = `<p>Could not read the sky. Please check your connection.</p>`;
+                }
+            }
+
+            // Only run the math if one of the APIs successfully gave us the times
+            if (fetchSuccess) {
                 const totalDaylightMs = sunsetDate.getTime() - sunriseDate.getTime();
                 tempHourMs = totalDaylightMs / 12;
                 tempMinuteMs = tempHourMs / 60;
@@ -631,9 +670,6 @@
                 if (tickInterval) clearInterval(tickInterval);
                 tickInterval = setInterval(tick, 1000);
                 tick(); 
-
-            } catch (error) {
-                document.getElementById('main-status').innerHTML = `<p>Could not read the sky. Please check your connection.</p>`;
             }
         }
 
