@@ -143,7 +143,7 @@
             text-align: left;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-size: 0.9em;
-            color: var(--text-main);
+            color: var(--text-muted);
         }
         .drawer-content p {
             margin: 8px 0;
@@ -291,6 +291,22 @@
         }
         .search-results li:last-child { border-bottom: none; }
         .search-results li:hover { background: var(--highlight-bg); color: var(--highlight-text); }
+		
+		/* --- DRAWER ANIMATIONS --- */
+        details[open] summary ~ * {
+            animation: slideDown 0.35s ease-out;
+        }
+
+        @keyframes slideDown {
+            0% {
+                opacity: 0;
+                transform: translateY(-15px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 <body>
@@ -321,8 +337,21 @@
 
         <!-- MOVED DOWN: Modern Calculations Drawer -->
         <details id="stats-drawer" style="display: none;">
-            <summary>View Modern Calculations</summary>
-            <div class="drawer-content" id="drawer-stats"></div>
+            <summary>How it Works</summary>
+            <div class="drawer-content">
+                <!-- The live numbers will continually load inside this empty div -->
+                <div id="drawer-stats"></div>
+                
+                <!-- A subtle visual divider -->
+                <hr style="border: none; border-top: 1px solid var(--border-color); margin: 12px 0;">
+                
+                <!-- Your static explanation text -->
+                <p style="text-align: center; margin-top: 25px; border-bottom: none; padding-bottom: 0;">
+                    <strong>The Mechanics of the Hours</strong>
+                </p>
+                <p>The app divides your total daylight into twelve equal "solar hours." Because ancient timekeeping was an approximation based on the sun's position, this app gives you a 30-minute window for each hour.</p>
+                <p>You officially enter a specific hour (like "The Third Hour") 15 minutes before the exact mathematical mark, and remain in it for 15 minutes after. All remaining time is considered "between" hours.</p>
+            </div>
         </details>
 
         <div class="location-section">
@@ -620,8 +649,12 @@
                 const markerTime = new Date(sunriseDate.getTime() + markerMs);
                 const timeStr = markerTime.toLocaleTimeString([], timeOptions);
                 
-                let rowLabel = i === 0 ? "Sunrise" : `The ${names[i]} Hour`;
-                if (i === 12) rowLabel = "The Twelfth Hour (Sunset)";
+                let rowLabel = `The ${names[i]} Hour`;
+                if (i === 0) rowLabel = "Sunrise (Matins)";
+                else if (i === 3) rowLabel = "The Third Hour (Terce)";
+                else if (i === 6) rowLabel = "The Sixth Hour (Sext)";
+                else if (i === 9) rowLabel = "The Ninth Hour (None)";
+                else if (i === 12) rowLabel = "Sunset (Vespers)";
 
                 html += `
                     <div class="hour-row" id="row-${i}">
@@ -741,8 +774,12 @@
                     }
                     
                     if (Notification.permission === 'granted' && lastActiveMarker !== -999) {
-                        let title = activeMarker === 0 ? "Sunrise" : `The ${names[activeMarker]} Hour`;
-                        if (activeMarker === 12) title = "The Twelfth Hour (Sunset)";
+                        let title = `The ${names[activeMarker]} Hour`;
+                        if (activeMarker === 0) title = "Sunrise (Matins)";
+                        else if (activeMarker === 3) title = "The Third Hour (Terce)";
+                        else if (activeMarker === 6) title = "The Sixth Hour (Sext)";
+                        else if (activeMarker === 9) title = "The Ninth Hour (None)";
+                        else if (activeMarker === 12) title = "Sunset (Vespers)";
                         
                         let bodyMessage = canonicalMessages[activeMarker] || "Pray without ceasing";
                         
