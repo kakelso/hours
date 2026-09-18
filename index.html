@@ -456,9 +456,9 @@
         let isFetchingNewDay = false;
 		
 		// --- TIME MACHINE (For Testing) ---
-        // To test, enter a time in this format: "2026-09-17T2:30:00"
+        // To test, enter a time in this format: "2026-09-17T02:30:00"
         // To return to real time, set it back to null
-        const SIMULATED_TIME = null; 
+        const SIMULATED_TIME = "2026-12-25T07:15:20"; 
         
         let timeOffset = 0;
         if (SIMULATED_TIME) {
@@ -807,7 +807,7 @@
 
             if (now.getTime() < sunriseDate.getTime()) {
                 if (now.getTime() >= predawnStartMs) {
-                    statusHtml = `<h2>Awaiting the Dawn</h2><p>${getSub("predawn")}</p>`; 
+                    statusHtml = `<h2>Awaiting the Day</h2><p>${getSub("predawn")}</p>`; 
                 } else {
                     statusHtml = `<h2>The Sun Has Set</h2><p>${getSub("night")}</p>`;
                 }
@@ -825,8 +825,15 @@
                     else if (i === 9) title = "The Ninth Hour (None)";
                     else if (isSunset) title = "Sunset (Vespers)";
 
-                    const diff = Math.abs(now.getTime() - markerTime);
-                    const withinBuffer = diff <= (15 * tempMinuteMs);
+                    let withinBuffer = false;
+                    if (i === 0) {
+                        // STRICT SUNRISE RULE: Triggers exactly at sunrise, stays open for 15 mins
+                        withinBuffer = (now.getTime() >= markerTime) && (now.getTime() <= markerTime + (15 * tempMinuteMs));
+                    } else {
+                        // STANDARD MATH: +/- 15 minutes for all other hours
+                        const diff = Math.abs(now.getTime() - markerTime);
+                        withinBuffer = diff <= (15 * tempMinuteMs);
+                    }
 
                     if (withinBuffer) {
                         activeMarker = i;
