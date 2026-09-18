@@ -199,7 +199,7 @@
         
         .prayer-drawer {
             margin: 10px 0 0 0;
-            text-align: left;
+            text-align: center; /* This centers the "View Prayer" toggle */
         }
         .prayer-drawer summary {
             color: var(--text-accent1);
@@ -216,6 +216,7 @@
             font-size: 0.95em;
             border-radius: 0 4px 4px 0;
             white-space: pre-wrap; 
+            text-align: left; /* This keeps the prayer text properly aligned */
         }
 
         .location-section {
@@ -320,19 +321,22 @@
 </head>
 <body>
 
-    <div class="card">
+    <div class="card"><!-- SIMULATED TIME WARNING BANNER -->
+        <div id="sim-warning" style="display: none; background: #ef4444; color: white; text-align: center; padding: 8px; border-radius: 6px; margin-bottom: 15px; font-weight: bold; font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 0.85em;">
+            ⚠️ SIMULATED TIME ACTIVE
+        </div>
+		
         <h1>Hours of Prayer</h1>
 		<p class="tagline">Pray like the ancients.</p>
-        
-        <div class="controls" id="notification-controls">
-            <button id="notify-btn" onclick="requestNotifications()">Enable Notifications</button>
-        </div>
         
         <div id="main-status">
             <p>Gathering daylight data...</p>
         </div>
 
-        <!-- MOVED UP: About Drawer -->
+        <!-- NEW: This holds the currently active prayer -->
+        <div id="active-prayer-container" style="display: none; margin: 0 10px 20px 10px;"></div>
+
+        <!-- About Drawer -->
         <details id="about-drawer">
             <summary>About this App</summary>
             <div class="drawer-content">
@@ -345,7 +349,7 @@
 
         <div class="schedule" id="schedule-list"></div>
 
-        <!-- MOVED DOWN: Modern Calculations Drawer -->
+        <!-- Modern Calculations Drawer -->
         <details id="stats-drawer" style="display: none;">
             <summary>How it Works</summary>
             <div class="drawer-content">
@@ -369,13 +373,23 @@
                 <span id="loc-display-text">Location: Determining...</span> 
                 <a onclick="toggleSearch()">(Change)</a>
             </div>
-            <div>
-                Theme: 
-                <select id="theme-selector" class="theme-select" onchange="changeTheme(this.value)">
-                    <option value="system">Auto</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                </select>
+            <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+                <div>
+                    Theme: 
+                    <select id="theme-selector" class="theme-select" onchange="changeTheme(this.value)">
+                        <option value="system">Auto</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <div>
+                    Alerts: 
+                    <select id="notify-selector" class="theme-select" onchange="changeNotifyPref(this.value)">
+                        <option value="off">Off</option>
+                        <option value="prayer">Prayer Hours</option>
+                        <option value="all">All Hours</option>
+                    </select>
+                </div>
             </div>
             
             <div id="loc-search-box" class="search-box">
@@ -389,7 +403,9 @@
         </div>
 
     </div>
-
+	
+	<!-- External Data -->
+	<script src="subtitles.js"></script>
     <script src="prayers.js"></script>
 
     <script>
@@ -414,6 +430,9 @@
         }
 
         document.getElementById('theme-selector').value = savedTheme; 
+		
+		const savedNotify = localStorage.getItem('notifyPref') || 'off';
+        document.getElementById('notify-selector').value = savedNotify;
         
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
             const currentSetting = localStorage.getItem('manualTheme') || 'system';
@@ -429,40 +448,50 @@
         
         let sunriseDate, sunsetDate, tempHourMs, tempMinuteMs;
         let lastActiveMarker = -999; 
+		let lastNotifiedMarker = -999;
         
         let isAppInitialized = false;
-        let tickInterval; 
+        let tickInterval;
+		let dateOffsetDays = 0;
+        let isFetchingNewDay = false;
+		
+		// --- TIME MACHINE (For Testing) ---
+        // To test, enter a time in this format: "2026-09-17T2:30:00"
+        // To return to real time, set it back to null
+        const SIMULATED_TIME = null; 
+        
+        let timeOffset = 0;
+        if (SIMULATED_TIME) {
+            timeOffset = new Date(SIMULATED_TIME).getTime() - new Date().getTime();
+            document.getElementById('sim-warning').style.display = 'block'; // Unhides the banner
+        }
+
+        function getNow() {
+            return new Date(new Date().getTime() + timeOffset);
+        }
         
         const names = ["Sunrise", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth", "Eleventh", "Twelfth"];
 
-        const canonicalMessages = {
-            1: "Morning prayer",
-            3: "The descent of the Holy Spirit",
-            6: "The hour of crucifixion",
-            9: "The hour of Christ's death",
-            12: "Evening prayer"
-        };
-
-        function checkNotificationStatus() {
-            const controls = document.getElementById('notification-controls');
-            if (!controls) return; 
-            
-            if (Notification.permission === 'granted' || Notification.permission === 'denied') {
-                controls.remove(); 
-            }
-        }
-
-        async function requestNotifications() {
-            if (!("Notification" in window)) {
-                alert("This browser does not support desktop notifications.");
-                return;
-            }
-            const permission = await Notification.requestPermission();
-            const controls = document.getElementById('notification-controls');
-            if (controls) controls.remove(); 
-            
-            if (permission === 'granted') {
-                new Notification("Hours of Prayer", { body: "You will now receive alerts for prayer hours." });
+        async function changeNotifyPref(value) {
+            localStorage.setItem('notifyPref', value);
+            if (value !== 'off') {
+                if (!("Notification" in window)) {
+                    alert("This browser does not support desktop notifications.");
+                    document.getElementById('notify-selector').value = 'off';
+                    localStorage.setItem('notifyPref', 'off');
+                    return;
+                }
+                if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') {
+                        document.getElementById('notify-selector').value = 'off';
+                        localStorage.setItem('notifyPref', 'off');
+                    }
+                } else if (Notification.permission === 'denied') {
+                    alert("Notifications are blocked by your browser. Please enable them in your browser settings.");
+                    document.getElementById('notify-selector').value = 'off';
+                    localStorage.setItem('notifyPref', 'off');
+                }
             }
         }
 
@@ -568,7 +597,6 @@
         }
 
         function requestLocationAndStart() {
-            checkNotificationStatus();
             
             const savedLat = localStorage.getItem('manualLat');
             const savedLng = localStorage.getItem('manualLng');
@@ -619,8 +647,10 @@
             isAppInitialized = true; 
             updateLocationDisplay(); 
             
-            const now = new Date();
-            const tzDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TARGET_TZ }).format(now);
+            const now = getNow();
+            // Apply the solar shift to the calendar date
+            const fetchDate = new Date(now.getTime() + (dateOffsetDays * 24 * 60 * 60 * 1000));
+            const tzDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TARGET_TZ }).format(fetchDate);
 
             let fetchSuccess = false;
 
@@ -686,7 +716,7 @@
         function buildSchedule() {
             let html = `<h3>Today's Hours</h3>`;
             
-            const now = new Date();
+            const now = getNow();
             const dayOfWeek = now.getDay();
             const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TARGET_TZ };
             
@@ -710,65 +740,122 @@
                         </div>
                 `;
 
-                if (typeof prayerLibrary !== 'undefined' && prayerLibrary[i]) {
-                    const prayers = prayerLibrary[i];
-                    const selectedPrayer = prayers[dayOfWeek % prayers.length];
-                    
-                    html += `
-                        <details class="prayer-drawer" id="prayer-drawer-${i}">
-                            <summary>View Prayer</summary>
-                            <div class="prayer-content">${selectedPrayer}</div>
-                        </details>
-                    `;
-                }
-
                 html += `</div>`;
             }
             document.getElementById('schedule-list').innerHTML = html;
         }
 
         function tick() {
-            const now = new Date();
+            const now = getNow();
             let statusHtml = "";
             let activeMarker = -1;
             
             const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TARGET_TZ };
             
-            const targetHourStr = new Intl.DateTimeFormat('en-US', { timeZone: TARGET_TZ, hour: 'numeric', hourCycle: 'h23' }).format(now);
-            const targetHour = parseInt(targetHourStr, 10);
+            // --- SOLAR DAY ALIGNMENT ---
+            const totalDaylightMs = sunsetDate.getTime() - sunriseDate.getTime();
+            const solarNoonMs = sunriseDate.getTime() + (totalDaylightMs / 2);
+            const prevSolarMidnightMs = solarNoonMs - (12 * 60 * 60 * 1000); 
+            const nextSolarMidnightMs = solarNoonMs + (12 * 60 * 60 * 1000);
 
-            if (now.getTime() < sunriseDate.getTime()) {
-                if (targetHour < 1) {
-                    statusHtml = `<h2>Awaiting the Dawn</h2><p>Lord, now let your servant depart in peace</p>`;
-                } else {
-                    statusHtml = `<h2>Awaiting the Dawn</h2>`; 
-                }
-            } else if (now.getTime() > sunsetDate.getTime() + (15 * tempMinuteMs)) {
-                statusHtml = `<h2>The Sun Has Set</h2><p>Lord, now let your servant depart in peace</p>`;
-            } else {
-                const msSinceSunrise = now.getTime() - sunriseDate.getTime();
-                const tm = msSinceSunrise / tempMinuteMs;
-                let nearestHour = Math.round(tm / 60);
-                let diff = tm - (nearestHour * 60); 
-
-                if (diff >= -15 && diff < 15) {
-                    activeMarker = nearestHour;
-                    if (nearestHour === 0) {
-                        statusHtml = `<h2>The sun has risen</h2><p>Sunrise was at ${sunriseDate.toLocaleTimeString([], timeOptions)}</p>`;
-                    } else {
-                        const customMessage = canonicalMessages[nearestHour] || "Pray without ceasing";
-                        statusHtml = `<h2>The ${names[nearestHour]} Hour</h2><p>${customMessage}</p>`;
-                    }
-                } else if (diff >= 15) {
-                    let currentName = nearestHour === 0 ? "sunrise" : `the ${names[nearestHour].toLowerCase()} hour`;
-                    let nextName = `the ${names[nearestHour + 1].toLowerCase()} hour`;
-                    statusHtml = `<h2>Between ${currentName} and ${nextName}</h2><p>Pray without ceasing</p>`;
-                } else if (diff < -15) {
-                    let prevName = nearestHour === 1 ? "sunrise" : `the ${names[nearestHour - 1].toLowerCase()} hour`;
-                    let currentName = `the ${names[nearestHour].toLowerCase()} hour`;
-                    statusHtml = `<h2>Between ${prevName} and ${currentName}</h2><p>Pray without ceasing</p>`;
+            if (!isFetchingNewDay) {
+                if (now.getTime() >= nextSolarMidnightMs) {
+                    isFetchingNewDay = true;
+                    dateOffsetDays++;
+                    console.log("Crossed into next solar day. Fetching tomorrow's data...");
+                    initializeApp().finally(() => { isFetchingNewDay = false; });
+                    return; 
+                } else if (now.getTime() < prevSolarMidnightMs) {
+                    isFetchingNewDay = true;
+                    dateOffsetDays--;
+                    console.log("Calendar is ahead of the sun. Fetching yesterday's data...");
+                    initializeApp().finally(() => { isFetchingNewDay = false; });
+                    return;
                 }
             }
+            // ---------------------------
+
+            // --- NIGHT HOUR MATH & SUBTITLE DISPLAY ---
+            const fetchDate = new Date(now.getTime() + (dateOffsetDays * 24 * 60 * 60 * 1000));
+            const dayOfWeek = fetchDate.getDay(); 
+            const monthDay = `${String(fetchDate.getMonth() + 1).padStart(2, '0')}-${String(fetchDate.getDate()).padStart(2, '0')}`;
+
+            // HELPER: Automatically cascade through Special Dates -> Weekly -> Defaults
+            function getSub(key, fallback = "") {
+                if (typeof specialDateSubtitles !== 'undefined' && specialDateSubtitles[monthDay] && specialDateSubtitles[monthDay][key]) {
+                    return specialDateSubtitles[monthDay][key];
+                }
+                if (typeof weeklySubtitles !== 'undefined' && weeklySubtitles[dayOfWeek] && weeklySubtitles[dayOfWeek][key]) {
+                    return weeklySubtitles[dayOfWeek][key];
+                }
+                if (typeof defaultSubtitles !== 'undefined' && defaultSubtitles[key]) {
+                    return defaultSubtitles[key];
+                }
+                return fallback;
+            }
+            
+            // Calculate a solar hour of the night
+            const totalNighttimeMs = (24 * 60 * 60 * 1000) - totalDaylightMs;
+            const nightHourMs = totalNighttimeMs / 12;
+            
+            // Get the user's preferred pre-dawn start time (default 9)
+            const predawnNightHour = (typeof subtitleSettings !== 'undefined' && subtitleSettings.predawnStartNightHour) ? subtitleSettings.predawnStartNightHour : 9;
+            
+            // Work backwards from sunrise to find the pre-dawn start time
+            const hoursBeforeSunrise = 12 - predawnNightHour;
+            const predawnStartMs = sunriseDate.getTime() - (hoursBeforeSunrise * nightHourMs);
+
+            if (now.getTime() < sunriseDate.getTime()) {
+                if (now.getTime() >= predawnStartMs) {
+                    statusHtml = `<h2>Awaiting the Dawn</h2><p>${getSub("predawn")}</p>`; 
+                } else {
+                    statusHtml = `<h2>The Sun Has Set</h2><p>${getSub("night")}</p>`;
+                }
+            } else if (now.getTime() > sunsetDate.getTime() + (15 * tempMinuteMs)) {
+                statusHtml = `<h2>The Sun Has Set</h2><p>${getSub("night")}</p>`;
+            } else {
+                for (let i = 0; i <= 12; i++) {
+                    const markerTime = sunriseDate.getTime() + (i * tempHourMs);
+                    const isSunrise = (i === 0);
+                    const isSunset = (i === 12);
+                    let title = `The ${names[i]} Hour`;
+                    if (isSunrise) title = "Sunrise (Matins)";
+                    else if (i === 3) title = "The Third Hour (Terce)";
+                    else if (i === 6) title = "The Sixth Hour (Sext)";
+                    else if (i === 9) title = "The Ninth Hour (None)";
+                    else if (isSunset) title = "Sunset (Vespers)";
+
+                    const diff = Math.abs(now.getTime() - markerTime);
+                    const withinBuffer = diff <= (15 * tempMinuteMs);
+
+                    if (withinBuffer) {
+                        activeMarker = i;
+                        let subKey = isSunrise ? "sunrise" : (isSunset ? "sunset" : i.toString());
+                        let subText = getSub(subKey);
+                        statusHtml = `<h2>${title}</h2>` + (subText ? `<p>${subText}</p>` : "");
+                        break;
+                    }
+                }
+
+                if (activeMarker === -1) {
+                    // Calculate exactly where we are in the daylight span
+                    const fractionalHour = (now.getTime() - sunriseDate.getTime()) / tempHourMs;
+                    const prevMarker = Math.floor(fractionalHour);
+                    const nextMarker = prevMarker + 1;
+                    
+                    let betweenText = "";
+                    if (prevMarker === 0) {
+                        betweenText = "Between Sunrise and the First Hour";
+                    } else if (nextMarker === 12) {
+                        betweenText = "Between the Eleventh Hour and Sunset";
+                    } else {
+                        betweenText = `Between the ${names[prevMarker]} and ${names[nextMarker]} Hours`;
+                    }
+                    
+                    statusHtml = `<h2>${betweenText}</h2><p>${getSub("between", "Pray without ceasing")}</p>`;
+                }
+            }
+            
             document.getElementById('main-status').innerHTML = statusHtml;
 
             const drawer = document.getElementById('stats-drawer');
@@ -813,21 +900,87 @@
             }
             
             if (activeMarker !== lastActiveMarker) {
+                const prayerContainer = document.getElementById('active-prayer-container');
+                
                 if (activeMarker !== -1) {
-                    const newDrawer = document.getElementById(`prayer-drawer-${activeMarker}`);
-                    if (newDrawer) {
-                        newDrawer.open = true;
-                    }
+                    const fetchDate = new Date(now.getTime() + (dateOffsetDays * 24 * 60 * 60 * 1000));
+                    const dayOfWeek = fetchDate.getDay();
+                    const monthDay = `${String(fetchDate.getMonth() + 1).padStart(2, '0')}-${String(fetchDate.getDate()).padStart(2, '0')}`;
                     
-                    if (Notification.permission === 'granted' && lastActiveMarker !== -999) {
-                        let title = `The ${names[activeMarker]} Hour`;
-                        if (activeMarker === 0) title = "Sunrise (Matins)";
-                        else if (activeMarker === 3) title = "The Third Hour (Terce)";
-                        else if (activeMarker === 6) title = "The Sixth Hour (Sext)";
-                        else if (activeMarker === 9) title = "The Ninth Hour (None)";
-                        else if (activeMarker === 12) title = "Sunset (Vespers)";
+                    let prayerIds = [];
+                    
+                    // 1. Check if today is a Special Date override
+                    if (typeof specialDates !== 'undefined' && specialDates[monthDay] && specialDates[monthDay][activeMarker]) {
+                        prayerIds = specialDates[monthDay][activeMarker];
+                    } 
+                    // 2. Otherwise, fall back to the standard Day/Hour schedule
+                    else if (typeof prayerSchedule !== 'undefined' && prayerSchedule[dayOfWeek] && prayerSchedule[dayOfWeek][activeMarker]) {
+                        prayerIds = prayerSchedule[dayOfWeek][activeMarker];
+                    }
+
+                    // 3. If we found prayers for this hour, assemble and display them
+                    if (prayerIds.length > 0) {
+                        // Stack multiple prayers with a double line break between them
+                        let combinedPrayers = prayerIds.map(id => prayers[id]).join('\n\n\n');
                         
-                        let bodyMessage = canonicalMessages[activeMarker] || "Pray without ceasing";
+                        prayerContainer.innerHTML = `
+                            <details class="prayer-drawer" open>
+                                <summary>View Prayer</summary>
+                                <div class="prayer-content">${combinedPrayers}</div>
+                            </details>
+                        `;
+                        prayerContainer.style.display = 'block';
+                    } else {
+                        // No prayer for this hour, hide the container
+                        prayerContainer.style.display = 'none';
+                        prayerContainer.innerHTML = '';
+                    }
+                } else {
+                    // Between hours, hide the container
+                    prayerContainer.style.display = 'none';
+                    prayerContainer.innerHTML = '';
+                }
+                
+                lastActiveMarker = activeMarker;
+            }
+
+            // --- EXACT HOUR NOTIFICATION LOGIC ---
+            let exactMarker = -1;
+            for (let i = 0; i <= 12; i++) {
+                const markerTime = sunriseDate.getTime() + (i * tempHourMs);
+                // Check if the current time has actually crossed the exact mathematical hour
+                if (now.getTime() >= markerTime && now.getTime() <= markerTime + (15 * tempMinuteMs)) {
+                    exactMarker = i;
+                    break;
+                }
+            }
+
+            // Trigger the notification only when crossing the exact hour boundary
+            if (exactMarker !== lastNotifiedMarker) {
+                if (exactMarker !== -1 && lastNotifiedMarker !== -999) {
+                    
+                    const notifyPref = localStorage.getItem('notifyPref') || 'off';
+                    let shouldNotify = false;
+                    
+                    if (notifyPref === 'all') {
+                        shouldNotify = true;
+                    } else if (notifyPref === 'prayer') {
+                        // Only trigger on 0 (Sunrise), 3, 6, 9, and 12 (Sunset)
+                        if ([0, 3, 6, 9, 12].includes(exactMarker)) {
+                            shouldNotify = true;
+                        }
+                    }
+
+                    if (shouldNotify && Notification.permission === 'granted') {
+                        let subKey = (exactMarker === 0) ? "sunrise" : ((exactMarker === 12) ? "sunset" : exactMarker.toString());
+                        let bodyMessage = getSub(subKey, "Pray without ceasing");
+                        
+                        let title = `The ${names[exactMarker]} Hour`;
+                        if (exactMarker === 0) title = "Sunrise (Matins)";
+                        else if (exactMarker === 3) title = "The Third Hour (Terce)";
+                        else if (exactMarker === 6) title = "The Sixth Hour (Sext)";
+                        else if (exactMarker === 9) title = "The Ninth Hour (None)";
+                        else if (exactMarker === 12) title = "Sunset (Vespers)";
                         
                         new Notification(title, { 
                             body: bodyMessage,
@@ -835,7 +988,7 @@
                         });
                     }
                 }
-                lastActiveMarker = activeMarker;
+                lastNotifiedMarker = exactMarker;
             }
         }
 
