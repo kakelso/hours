@@ -414,7 +414,7 @@
     </div>
 	
 	<!-- External Data -->
-	<script src="subtitles.js?v=2"></script>
+	<script src="subtitles.js?v=3"></script>
     <script src="prayers.js?v=2"></script>
 
     <script>
@@ -893,14 +893,6 @@
 
             // STRICT BOUNDARY: If we are exactly before Sunrise, or exactly after Sunset
             if (now.getTime() < sunriseDate.getTime() || now.getTime() >= sunsetDate.getTime()) {
-                
-                // Determine the boundaries of the current night
-                let currentSunsetMs;
-                if (now.getTime() < sunriseDate.getTime()) {
-                    currentSunsetMs = sunriseDate.getTime() - totalNighttimeMs; // Pre-dawn (yesterday's sunset)
-                } else {
-                    currentSunsetMs = sunsetDate.getTime(); // Evening (today's sunset)
-                }
                 
                 // STRICT SUNSET RULE: Exact start, stays open for 15 mins
                 if (now.getTime() >= currentSunsetMs && now.getTime() <= currentSunsetMs + (15 * tempMinuteMs)) {

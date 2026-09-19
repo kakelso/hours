@@ -22,9 +22,17 @@ const defaultSubtitles = {
 
     // --- DAY HOURS ---
     "sunrise": "Morning prayer",
+	"1": "Lord, have mercy",
+	"2": "Christ, have mercy",
     "3": "Mid-morning prayer",
+	"4": "Create in me a clean heart, O God",
+	"5": "Renew a right spirit within me",
     "6": "Mid-day prayer",
+	"7": "Lord Jesus Christ, Son of God, have mercy on me, a sinner.",
+	"8": "Lord Jesus Christ, Son of God, have mercy on me, a sinner.",
     "9": "Mid-afternoon prayer",
+	"10": "Lord, have mercy",
+	"11": "Christ, have mercy",
     "sunset": "Evening prayer"
 };
 
@@ -33,8 +41,8 @@ const defaultSubtitles = {
 const weeklySubtitles = {
     0: { 
         // Replaced "predawn" with the specific final hours of the night
-        "night_11": "Behold, the Bridegroom comes in the middle of the night.",
-        "night_12": "Behold, the Bridegroom comes in the middle of the night.",
+        "night_11": "Behold, the Bridegroom comes.",
+        "night_12": "Behold, the Bridegroom comes.",
         "sunrise": "Christ is Risen!"
     },
     5: { 
