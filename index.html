@@ -349,6 +349,14 @@
 
         <div class="schedule" id="schedule-list"></div>
 
+        <!-- NEW: Dynamic Future Schedule Drawer -->
+        <details id="secondary-schedule-drawer" style="display: none;">
+            <summary id="secondary-schedule-summary">Tonight's Watches</summary>
+            <div class="drawer-content" style="padding: 10px;">
+                <div class="schedule" id="secondary-schedule-list" style="margin-top: 0;"></div>
+            </div>
+        </details>
+
         <!-- Modern Calculations Drawer -->
         <details id="stats-drawer" style="display: none;">
             <summary>How it Works</summary>
@@ -363,8 +371,9 @@
                 <p style="text-align: center; margin-top: 25px; border-bottom: none; padding-bottom: 0;">
                     <strong>The Mechanics of the Hours</strong>
                 </p>
-                <p>The app divides your total daylight into twelve equal "solar hours." Because ancient timekeeping was an approximation based on the sun's position, this app gives you a 30-minute window for each hour.</p>
+                <p>The app divides your total daylight into twelve equal "solar hours." Because ancient timekeeping was an approximation based on the sun's position, this app gives you a 30-minute window for each hour during the day.</p>
                 <p>You officially enter a specific hour (like "The Third Hour") 15 minutes before the exact mathematical mark, and remain in it for 15 minutes after. All remaining time is considered "between" hours.</p>
+				<p>At night, the app similarly divides time into twelve equal "nighttime hours," but what is displayed instead is the four traditional watches of the night, each three nighttime hours long.</p>
             </div>
         </details>
 
@@ -447,6 +456,7 @@
         let TARGET_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone; 
         
         let sunriseDate, sunsetDate, tempHourMs, tempMinuteMs;
+        let tomorrowSunriseDate, tomorrowSunsetDate, yesterdaySunsetDate;
         let lastActiveMarker = -999; 
 		let lastNotifiedMarker = -999;
         
@@ -454,6 +464,7 @@
         let tickInterval;
 		let dateOffsetDays = 0;
         let isFetchingNewDay = false;
+        let currentDisplayPhase = ""; // Tracks day vs night UI
 		
 		// --- TIME MACHINE (For Testing) ---
         // To test, enter a time in this format: "2026-09-17T02:30:00"
@@ -650,48 +661,63 @@
             const now = getNow();
             // Apply the solar shift to the calendar date
             const fetchDate = new Date(now.getTime() + (dateOffsetDays * 24 * 60 * 60 * 1000));
+            // Generate exact date strings for Yesterday, Today, and Tomorrow
+            const tomorrowFetchDate = new Date(fetchDate.getTime() + (24 * 60 * 60 * 1000));
+            const yesterdayFetchDate = new Date(fetchDate.getTime() - (24 * 60 * 60 * 1000));
+            
             const tzDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TARGET_TZ }).format(fetchDate);
+            const tomorrowDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TARGET_TZ }).format(tomorrowFetchDate);
+            const yesterdayDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TARGET_TZ }).format(yesterdayFetchDate);
 
             let fetchSuccess = false;
 
             try {
-                // ATTEMPT 1: Primary API
-                const url = `https://api.sunrise-sunset.org/json?lat=${LAT}&lng=${LNG}&date=${tzDateStr}&formatted=0`;
-                
-                // Create a 3.5-second fuse so the app doesn't hang if the server is a "black hole"
+                // ATTEMPT 1: Primary API (Concurrent fetching)
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 3500);
                 
-                const response = await fetch(url, { signal: controller.signal });
+                const [resToday, resTomorrow, resYesterday] = await Promise.all([
+                    fetch(`https://api.sunrise-sunset.org/json?lat=${LAT}&lng=${LNG}&date=${tzDateStr}&formatted=0`, { signal: controller.signal }),
+                    fetch(`https://api.sunrise-sunset.org/json?lat=${LAT}&lng=${LNG}&date=${tomorrowDateStr}&formatted=0`, { signal: controller.signal }),
+                    fetch(`https://api.sunrise-sunset.org/json?lat=${LAT}&lng=${LNG}&date=${yesterdayDateStr}&formatted=0`, { signal: controller.signal })
+                ]);
                 
-                // Disarm the fuse if the server responds in time!
                 clearTimeout(timeoutId);
                 
-                if (!response.ok) throw new Error("Primary API returned an error");
+                if (!resToday.ok || !resTomorrow.ok || !resYesterday.ok) throw new Error("Primary API returned an error");
                 
-                const data = await response.json();
-                sunriseDate = new Date(data.results.sunrise);
-                sunsetDate = new Date(data.results.sunset);
+                const dataToday = await resToday.json();
+                const dataTomorrow = await resTomorrow.json();
+                const dataYesterday = await resYesterday.json();
+                
+                sunriseDate = new Date(dataToday.results.sunrise);
+                sunsetDate = new Date(dataToday.results.sunset);
+                tomorrowSunriseDate = new Date(dataTomorrow.results.sunrise);
+                tomorrowSunsetDate = new Date(dataTomorrow.results.sunset);
+                yesterdaySunsetDate = new Date(dataYesterday.results.sunset);
+                
                 fetchSuccess = true;
 
             } catch (primaryError) {
                 console.log("Primary API failed or timed out. Switching to backup...");
                 
                 try {
-                    // ATTEMPT 2: Backup API (Open-Meteo)
-                    const backupUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}&daily=sunrise,sunset&timezone=UTC&forecast_days=1`;
+                    // ATTEMPT 2: Backup API (Can pull a date range in one call!)
+                    const backupUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}&daily=sunrise,sunset&timezone=UTC&start_date=${yesterdayDateStr}&end_date=${tomorrowDateStr}`;
                     const backupResponse = await fetch(backupUrl);
                     
                     if (!backupResponse.ok) throw new Error("Backup API down");
                     const backupData = await backupResponse.json();
 
-                    // Open-Meteo formats UTC time slightly differently, so we append "Z" to correct it
-                    sunriseDate = new Date(backupData.daily.sunrise[0] + "Z");
-                    sunsetDate = new Date(backupData.daily.sunset[0] + "Z");
+                    yesterdaySunsetDate = new Date(backupData.daily.sunset[0] + "Z");
+                    sunriseDate = new Date(backupData.daily.sunrise[1] + "Z");
+                    sunsetDate = new Date(backupData.daily.sunset[1] + "Z");
+                    tomorrowSunriseDate = new Date(backupData.daily.sunrise[2] + "Z");
+                    tomorrowSunsetDate = new Date(backupData.daily.sunset[2] + "Z");
+                    
                     fetchSuccess = true;
 
                 } catch (backupError) {
-                    // Both APIs failed
                     console.error("Backup also failed:", backupError);
                     document.getElementById('main-status').innerHTML = `<p>Could not read the sky. Please check your connection.</p>`;
                 }
@@ -704,8 +730,6 @@
                 tempMinuteMs = tempHourMs / 60;
 
                 document.getElementById('stats-drawer').style.display = 'block';
-
-                buildSchedule();
                 
                 if (tickInterval) clearInterval(tickInterval);
                 tickInterval = setInterval(tick, 1000);
@@ -713,36 +737,77 @@
             }
         }
 
-        function buildSchedule() {
-            let html = `<h3>Today's Hours</h3>`;
-            
-            const now = getNow();
-            const dayOfWeek = now.getDay();
-            const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TARGET_TZ };
-            
-            for (let i = 0; i <= 12; i++) {
-                const markerMs = i * tempHourMs;
-                const markerTime = new Date(sunriseDate.getTime() + markerMs);
-                const timeStr = markerTime.toLocaleTimeString([], timeOptions);
-                
-                let rowLabel = `The ${names[i]} Hour`;
-                if (i === 0) rowLabel = "Sunrise (Matins)";
-                else if (i === 3) rowLabel = "The Third Hour (Terce)";
-                else if (i === 6) rowLabel = "The Sixth Hour (Sext)";
-                else if (i === 9) rowLabel = "The Ninth Hour (None)";
-                else if (i === 12) rowLabel = "Sunset (Vespers)";
+        function updateScheduleDisplays(phase) {
+            const mainList = document.getElementById('schedule-list');
+            const secondaryDrawer = document.getElementById('secondary-schedule-drawer');
+            const secondarySummary = document.getElementById('secondary-schedule-summary');
+            const secondaryList = document.getElementById('secondary-schedule-list');
 
-                html += `
-                    <div class="hour-row" id="row-${i}">
-                        <div class="hour-header">
-                            <span>${rowLabel}</span>
-                            <span>${timeStr}</span>
-                        </div>
-                `;
-
-                html += `</div>`;
+            if (phase === "day") {
+                mainList.innerHTML = getScheduleHTML('day', "Today's Hours", sunriseDate, sunsetDate, true);
+                secondarySummary.textContent = "Tonight's Watches";
+                secondaryList.innerHTML = getScheduleHTML('night', "", sunsetDate, tomorrowSunriseDate, false);
+            } else if (phase === "evening") {
+                mainList.innerHTML = getScheduleHTML('night', "Tonight's Watches", sunsetDate, tomorrowSunriseDate, true);
+                secondarySummary.textContent = "Tomorrow's Hours";
+                secondaryList.innerHTML = getScheduleHTML('day', "", tomorrowSunriseDate, tomorrowSunsetDate, false);
+            } else if (phase === "predawn") {
+                mainList.innerHTML = getScheduleHTML('night', "Tonight's Watches", yesterdaySunsetDate, sunriseDate, true);
+                secondarySummary.textContent = "Today's Hours";
+                secondaryList.innerHTML = getScheduleHTML('day', "", sunriseDate, sunsetDate, false);
             }
-            document.getElementById('schedule-list').innerHTML = html;
+            
+            secondaryDrawer.style.display = 'block';
+        }
+
+        function getScheduleHTML(type, title, boundA, boundB, isMain) {
+            let html = title ? `<h3>${title}</h3>` : "";
+            const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TARGET_TZ };
+            const totalMs = boundB.getTime() - boundA.getTime();
+            
+            if (type === 'day') {
+                const dHourMs = totalMs / 12;
+                for (let i = 0; i <= 12; i++) {
+                    const markerTime = new Date(boundA.getTime() + (i * dHourMs));
+                    const timeStr = markerTime.toLocaleTimeString([], timeOptions);
+                    let rowLabel = `The ${names[i]} Hour`;
+                    if (i === 0) rowLabel = "Sunrise (Matins)";
+                    else if (i === 3) rowLabel = "The Third Hour (Terce)";
+                    else if (i === 6) rowLabel = "The Sixth Hour (Sext)";
+                    else if (i === 9) rowLabel = "The Ninth Hour (None)";
+                    else if (i === 12) rowLabel = "Sunset (Vespers)";
+                    
+                    const rowId = isMain ? `row-${i}` : `alt-row-${i}`;
+                    html += `<div class="hour-row" id="${rowId}">
+                                <div class="hour-header">
+                                    <span>${rowLabel}</span>
+                                    <span>${timeStr}</span>
+                                </div>
+                             </div>`;
+                }
+            } else {
+                const nHourMs = totalMs / 12;
+                const watchMs = nHourMs * 3;
+                const rows = [
+                    { id: 12, label: 'Sunset (Vespers)', time: new Date(boundA.getTime()) },
+                    { id: 'watch_1', label: 'The First Watch Ends', time: new Date(boundA.getTime() + watchMs) },
+                    { id: 'watch_2', label: 'The Second Watch Ends', time: new Date(boundA.getTime() + (2 * watchMs)) },
+                    { id: 'watch_3', label: 'The Third Watch Ends', time: new Date(boundA.getTime() + (3 * watchMs)) },
+                    { id: 'watch_4', label: 'Sunrise (Matins)', time: new Date(boundB.getTime()) }
+                ];
+                
+                rows.forEach(r => {
+                    const timeStr = r.time.toLocaleTimeString([], timeOptions);
+                    const rowId = isMain ? `row-${r.id}` : `alt-row-${r.id}`;
+                    html += `<div class="hour-row" id="${rowId}">
+                                <div class="hour-header">
+                                    <span>${r.label}</span>
+                                    <span>${timeStr}</span>
+                                </div>
+                             </div>`;
+                });
+            }
+            return html;
         }
 
         function tick() {
@@ -775,6 +840,22 @@
             }
             // ---------------------------
 
+			// --- UI DISPLAY SWAP (Day vs Night) ---
+            let phase = "";
+            if (now.getTime() < sunriseDate.getTime()) {
+                phase = "predawn"; // Flips to Day exactly at Sunrise
+            } else if (now.getTime() >= sunsetDate.getTime()) {
+                phase = "evening"; // Flips to Night exactly at Sunset
+            } else {
+                phase = "day";
+            }
+
+            if (currentDisplayPhase !== phase) {
+                currentDisplayPhase = phase;
+                updateScheduleDisplays(phase);
+            }
+            // --------------------------------------
+
             // --- NIGHT HOUR MATH & SUBTITLE DISPLAY ---
             const fetchDate = new Date(now.getTime() + (dateOffsetDays * 24 * 60 * 60 * 1000));
             const dayOfWeek = fetchDate.getDay(); 
@@ -794,27 +875,64 @@
                 return fallback;
             }
             
-            // Calculate a solar hour of the night
-            const totalNighttimeMs = (24 * 60 * 60 * 1000) - totalDaylightMs;
-            const nightHourMs = totalNighttimeMs / 12;
-            
-            // Get the user's preferred pre-dawn start time (default 9)
-            const predawnNightHour = (typeof subtitleSettings !== 'undefined' && subtitleSettings.predawnStartNightHour) ? subtitleSettings.predawnStartNightHour : 9;
-            
-            // Work backwards from sunrise to find the pre-dawn start time
-            const hoursBeforeSunrise = 12 - predawnNightHour;
-            const predawnStartMs = sunriseDate.getTime() - (hoursBeforeSunrise * nightHourMs);
+            // Calculate a mathematically perfect solar hour of the night based on actual sunset/sunrise
+            let totalNighttimeMs;
+            let currentSunsetMs;
 
             if (now.getTime() < sunriseDate.getTime()) {
-                if (now.getTime() >= predawnStartMs) {
-                    statusHtml = `<h2>Awaiting the Day</h2><p>${getSub("predawn")}</p>`; 
-                } else {
-                    statusHtml = `<h2>The Sun Has Set</h2><p>${getSub("night")}</p>`;
-                }
-            } else if (now.getTime() > sunsetDate.getTime() + (15 * tempMinuteMs)) {
-                statusHtml = `<h2>The Sun Has Set</h2><p>${getSub("night")}</p>`;
+                // Pre-dawn: Measured from Yesterday's Sunset to Today's Sunrise
+                totalNighttimeMs = sunriseDate.getTime() - yesterdaySunsetDate.getTime();
+                currentSunsetMs = yesterdaySunsetDate.getTime();
             } else {
-                for (let i = 0; i <= 12; i++) {
+                // Evening: Measured from Today's Sunset to Tomorrow's Sunrise
+                totalNighttimeMs = tomorrowSunriseDate.getTime() - sunsetDate.getTime();
+                currentSunsetMs = sunsetDate.getTime();
+            }
+            
+            const nightHourMs = totalNighttimeMs / 12;
+
+            // STRICT BOUNDARY: If we are exactly before Sunrise, or exactly after Sunset
+            if (now.getTime() < sunriseDate.getTime() || now.getTime() >= sunsetDate.getTime()) {
+                
+                // Determine the boundaries of the current night
+                let currentSunsetMs;
+                if (now.getTime() < sunriseDate.getTime()) {
+                    currentSunsetMs = sunriseDate.getTime() - totalNighttimeMs; // Pre-dawn (yesterday's sunset)
+                } else {
+                    currentSunsetMs = sunsetDate.getTime(); // Evening (today's sunset)
+                }
+                
+                // STRICT SUNSET RULE: Exact start, stays open for 15 mins
+                if (now.getTime() >= currentSunsetMs && now.getTime() <= currentSunsetMs + (15 * tempMinuteMs)) {
+                    activeMarker = 12; 
+                    let subText = getSub("sunset", getSub("night", "Lord, now let your servant depart in peace."));
+                    statusHtml = `<h2>Sunset (Vespers)</h2><p>${subText}</p>`;
+                } else {
+                    // CALCULATE THE WATCHES: Applies to the remainder of the night
+                    const elapsedNightMs = now.getTime() - currentSunsetMs;
+                    const nightHourFloat = elapsedNightMs / nightHourMs; 
+                    
+                    let title = "";
+                    if (nightHourFloat < 3) {
+                        title = "The First Watch of Night";
+                    } else if (nightHourFloat < 6) {
+                        title = "The Second Watch of Night";
+                    } else if (nightHourFloat < 9) {
+                        title = "The Third Watch of Night";
+                    } else {
+                        title = "The Fourth Watch of Night";
+                    }
+                    
+                    // Set the active marker to the exact night hour (1 through 12)
+                    const currentNightHour = Math.floor(nightHourFloat) + 1;
+                    activeMarker = `night_${currentNightHour}`;
+                    
+                    // Fetch subtitle using the hour ID
+                    let subText = getSub(activeMarker, getSub("night", "Lord, now let your servant depart in peace."));
+                    statusHtml = `<h2>${title}</h2><p>${subText}</p>`;
+                }
+            } else {
+                for (let i = 0; i <= 11; i++) {
                     const markerTime = sunriseDate.getTime() + (i * tempHourMs);
                     const isSunrise = (i === 0);
                     const isSunset = (i === 12);
@@ -873,38 +991,70 @@
                 const hourMins = Math.floor(tempHourMs / 60000);
                 const hourSecs = Math.floor((tempHourMs % 60000) / 1000);
 
-                // NEW: Calculate Solar Noon and format the times
+                // Calculate Solar Noon and format the times
                 const solarNoonDate = new Date(sunriseDate.getTime() + (totalDaylightMs / 2));
                 const drawerTimeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TARGET_TZ };
                 const sunriseStr = sunriseDate.toLocaleTimeString([], drawerTimeOptions);
                 const solarNoonStr = solarNoonDate.toLocaleTimeString([], drawerTimeOptions);
                 const sunsetStr = sunsetDate.toLocaleTimeString([], drawerTimeOptions);
 
-                // NEW: Added the three times to the top of the drawer
+                // Format the existing nightHourMs into minutes and seconds
+                const nightHourMins = Math.floor(nightHourMs / 60000);
+                const nightHourSecs = Math.floor((nightHourMs % 60000) / 1000);
+
+                // Times and Measurements
                 let statsHtml = `<p><strong>Sunrise:</strong> ${sunriseStr}</p>
                                  <p><strong>Solar Noon:</strong> ${solarNoonStr}</p>
                                  <p><strong>Sunset:</strong> ${sunsetStr}</p>
                                  <p><strong>Total Daylight Today:</strong> ${totalMins} minutes and ${totalSecs} seconds</p>
-                                 <p><strong>One Daylight Hour:</strong> ${hourMins} minutes and ${hourSecs} seconds</p>`;
+                                 <p><strong>One Daylight Hour:</strong> ${hourMins} minutes and ${hourSecs} seconds</p>
+                                 <p><strong>One Nighttime Hour:</strong> ${nightHourMins} minutes and ${nightHourSecs} seconds</p>`;
                 
-                if (now.getTime() >= sunriseDate.getTime()) {
+                if (now.getTime() > sunsetDate.getTime()) {
+                    // Evening/Nighttime (after today's sunset)
+                    const elapsedMs = now.getTime() - sunsetDate.getTime();
+                    const elapsedMins = Math.floor(elapsedMs / 60000);
+                    const elapsedSecs = Math.floor((elapsedMs % 60000) / 1000);
+                    statsHtml += `<p><strong>Time Since Sunset:</strong> ${elapsedMins} minutes and ${elapsedSecs} seconds</p>`;
+                } else if (now.getTime() >= sunriseDate.getTime()) {
+                    // Daytime (between sunrise and sunset)
                     const elapsedMs = now.getTime() - sunriseDate.getTime();
                     const elapsedMins = Math.floor(elapsedMs / 60000);
                     const elapsedSecs = Math.floor((elapsedMs % 60000) / 1000);
                     statsHtml += `<p><strong>Time Since Sunrise:</strong> ${elapsedMins} minutes and ${elapsedSecs} seconds</p>`;
                 } else {
-                    statsHtml += `<p><strong>Time Since Sunrise:</strong> The sun has not yet risen.</p>`;
+                    // Pre-dawn (technically tracking from yesterday's sunset)
+                    const prevSunsetMs = sunriseDate.getTime() - totalNighttimeMs;
+                    const elapsedMs = now.getTime() - yesterdaySunsetDate.getTime();
+                    const elapsedMins = Math.floor(elapsedMs / 60000);
+                    const elapsedSecs = Math.floor((elapsedMs % 60000) / 1000);
+                    statsHtml += `<p><strong>Time Since Sunset:</strong> ${elapsedMins} minutes and ${elapsedSecs} seconds</p>`;
                 }
                 
                 document.getElementById('drawer-stats').innerHTML = statsHtml;
             }
 
-            for (let i = 0; i <= 12; i++) {
-                const row = document.getElementById(`row-${i}`);
-                if (row) {
-                    row.className = (i === activeMarker) ? "hour-row active" : "hour-row";
-                }
+            // Map the exact night hour back to its UI watch row for highlighting
+            let uiMarker = activeMarker;
+            if (typeof activeMarker === 'string' && activeMarker.startsWith('night_')) {
+                const hourNum = parseInt(activeMarker.split('_')[1]);
+                if (hourNum <= 3) uiMarker = 'watch_1';
+                else if (hourNum <= 6) uiMarker = 'watch_2';
+                else if (hourNum <= 9) uiMarker = 'watch_3';
+                else uiMarker = 'watch_4';
             }
+
+            const allPossibleIds = [
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 
+                'watch_1', 'watch_2', 'watch_3', 'watch_4', 'sunrise'
+            ];
+            
+            allPossibleIds.forEach(id => {
+                const row = document.getElementById(`row-${id}`);
+                if (row) {
+                    row.className = (String(id) === String(uiMarker)) ? "hour-row active" : "hour-row";
+                }
+            });
             
             if (activeMarker !== lastActiveMarker) {
                 const prayerContainer = document.getElementById('active-prayer-container');
