@@ -415,7 +415,7 @@
 	
 	<!-- External Data -->
 	<script src="subtitles.js?v=3"></script>
-    <script src="prayers.js?v=2"></script>
+    <script src="prayers.js?v=3"></script>
 
     <script>
         // --- THEME LOGIC ---
@@ -791,7 +791,7 @@
                 const rows = [
                     { id: 12, label: 'Sunset (Vespers)', time: new Date(boundA.getTime()) },
                     { id: 'watch_1', label: 'The First Watch Ends', time: new Date(boundA.getTime() + watchMs) },
-                    { id: 'watch_2', label: 'The Second Watch Ends', time: new Date(boundA.getTime() + (2 * watchMs)) },
+                    { id: 'watch_2', label: 'The Second Watch Ends (Solar Midnight)', time: new Date(boundA.getTime() + (2 * watchMs)) },
                     { id: 'watch_3', label: 'The Third Watch Ends', time: new Date(boundA.getTime() + (3 * watchMs)) },
                     { id: 'watch_4', label: 'Sunrise (Matins)', time: new Date(boundB.getTime()) }
                 ];
