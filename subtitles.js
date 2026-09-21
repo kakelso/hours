@@ -43,7 +43,8 @@ const weeklySubtitles = {
         // Replaced "predawn" with the specific final hours of the night
         "night_11": "Behold, the Bridegroom comes.",
         "night_12": "Behold, the Bridegroom comes.",
-        "sunrise": "Christ is Risen!"
+        "sunrise": "Christ is Risen!",
+		"sunset": "Behold, I am with you always, to the end of the age."
     },
     5: { 
         // Spans the entire 4th Watch (hours 10, 11, and 12)
@@ -64,5 +65,42 @@ const specialDateSubtitles = {
     "12-25": {
         "sunrise": "Unto us a child is born!",
         "6": "The Word made flesh"
-    }
+    },
+	
+	"09-21": {													// Matthew, Monday in 2026
+		"sunrise": ["Blessed are the poor in spirit."], 
+        3: ["Blessed are those who hunger and thirs for righteousness."], 
+        6: ["Blessed are the pure in heart."], 
+        9: ["Blessed are the peacemakers."]
+	},
+	"09-29": {													// Michael and all Angels, Tuesday in 2026
+		"sunrise": ["He will command his angels concerning you to guard you."], 
+        3: ["The angel of the Lord encamps around those who fear him."], 
+        6: ["Do you not know that we are to judge angels?"], 
+        9: ["Fear God and give him glory."]
+	},
+	"10-18": {													// Luke, Sunday in 2026
+		"sunrise": ["The Feast of St. Luke"], 
+        3: ["His mercy is for those who fear him."], 
+        6: ["Guide our feet into the way of peace."], 
+        9: ["You will be my witnesses."]
+	},
+	"10-23": {													// James of Jerusalem, Friday in 2026
+		"sunrise": ["The Feast of St. James of Jerusalem"], 
+        3: ["The Feast of St. James of Jerusalem"], 
+        6: ["The Feast of St. James of Jerusalem"], 
+        9: ["The Feast of St. James of Jerusalem"]
+	},
+	"10-28": {													// Simon and Jude, Wednesday in 2026
+		"sunrise": ["The Feast of St. Simon and St. Jude"], 
+        3: ["The Feast of St. Simon and St. Jude"], 
+        6: ["The Feast of St. Simon and St. Jude"], 
+        9: ["The Feast of St. Simon and St. Jude"]
+	},
+	"11-01": {													// All Saints, Sunday in 2026
+		"sunrise": ["The Feast of All Saints"], 
+        3: ["The Feast of All Saints"], 
+        6: ["The Feast of All Saints"], 
+        9: ["The Feast of All Saints"]
+	}
 };
