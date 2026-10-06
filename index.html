@@ -327,13 +327,22 @@
         </div>
 		
         <h1>Hours of Prayer</h1>
-		<p class="tagline">Pray like the ancients.</p>
+        <p class="tagline">Pray like the ancients.</p>
         
-        <div id="main-status">
-            <p>Gathering daylight data...</p>
+        <!-- Tab Navigation -->
+        <div class="controls" style="border-bottom: none; padding-bottom: 10px;">
+            <button id="btn-tab-hours" onclick="switchTab('hours')" style="padding: 8px 16px; margin-right: 10px; font-family: inherit; cursor: pointer; border-radius: 4px; border: 1px solid var(--text-accent1); background: var(--text-accent1); color: white;">The Hours</button>
+            <button id="btn-tab-library" onclick="switchTab('library')" style="padding: 8px 16px; font-family: inherit; cursor: pointer; border-radius: 4px; border: 1px solid var(--text-accent1); background: transparent; color: var(--text-accent1);">Prayer Library</button>
         </div>
 
-        <!-- NEW: This holds the currently active prayer -->
+        <!-- Hours Tab Container -->
+        <div id="tab-hours">
+
+            <div id="main-status">
+                <p>Gathering daylight data...</p>
+            </div>
+
+        <!-- This holds the currently active prayer -->
         <div id="active-prayer-container" style="display: none; margin: 0 10px 20px 10px;"></div>
 
         <!-- About Drawer -->
@@ -376,6 +385,26 @@
 				<p>At night, the app similarly divides time into twelve equal "nighttime hours," but what is displayed instead is the four traditional watches of the night, each three nighttime hours long.</p>
             </div>
         </details>
+        
+        </div> <!-- Closes tab-hours -->
+
+        <!-- NEW: Library Tab Container -->
+        <div id="tab-library" style="display: none;">
+            <h2 style="text-align: center; color: var(--text-accent2); font-weight: normal; font-size: 1.8em; margin: 20px 0 10px 0;">Today's Prayers</h2>
+            <div id="todays-prayers-list" style="margin-bottom: 30px;">
+                <!-- Generated dynamically -->
+            </div>
+
+            <!-- NEW: Search Section -->
+            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 30px 0;">
+            <h2 style="text-align: center; color: var(--text-accent2); font-weight: normal; font-size: 1.5em; margin: 0 0 15px 0;">Search all prayers</h2>
+            
+            <input type="text" id="library-search-input" placeholder="Search by title, keyword, or text..." oninput="searchLibrary()" style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-main); font-family: inherit; font-size: 1em; margin-bottom: 20px; box-sizing: border-box; outline: none;">
+            
+            <div id="library-search-results">
+                <!-- Search results will populate here -->
+            </div>
+        </div>
 
         <div class="location-section">
             <div>
@@ -412,12 +441,177 @@
         </div>
 
     </div>
+    
+    
 	
 	<!-- External Data -->
-	<script src="subtitles.js?v=4"></script>
-    <script src="prayers.js?v=4"></script>
+    <script src="prayers.js?v=5"></script>
+    <script src="schedule.js?v=5"></script>
 
     <script>
+        // --- TAB LOGIC ---
+        function switchTab(tab) {
+            document.getElementById('tab-hours').style.display = (tab === 'hours') ? 'block' : 'none';
+            document.getElementById('tab-library').style.display = (tab === 'library') ? 'block' : 'none';
+			const btnHours = document.getElementById('btn-tab-hours');
+            const btnLibrary = document.getElementById('btn-tab-library');
+            // We will build the actual div switching logic in Step 2!
+            if (tab === 'hours') {
+                btnHours.style.background = 'var(--text-accent1)';
+                btnHours.style.color = 'white';
+                btnLibrary.style.background = 'transparent';
+                btnLibrary.style.color = 'var(--text-accent1)';
+            } else {
+                btnLibrary.style.background = 'var(--text-accent1)';
+                btnLibrary.style.color = 'white';
+                btnHours.style.background = 'transparent';
+                btnHours.style.color = 'var(--text-accent1)';
+            }
+        }
+
+        // --- PRAYER VARIABLE PARSER ---
+        function parsePrayerText(prayerObj, customVars) {
+            let text = prayerObj.text;
+            const varsToUse = customVars || prayerObj.defaultVars || {};
+            // Replaces anything inside {{variable_name}} with the provided string
+            text = text.replace(/\{\{(.*?)\}\}/g, (match, key) => {
+                return varsToUse[key] !== undefined ? varsToUse[key] : match;
+            });
+            return text;
+        }
+		
+		// --- TODAY'S PRAYERS GENERATOR ---
+        function buildTodaysPrayersList() {
+            const now = getNow();
+            const fetchDate = new Date(now.getTime() + (dateOffsetDays * 24 * 60 * 60 * 1000));
+            const dayOfWeek = fetchDate.getDay();
+            const monthDay = `${String(fetchDate.getMonth() + 1).padStart(2, '0')}-${String(fetchDate.getDate()).padStart(2, '0')}`;
+            
+            const uniquePrayers = new Map(); // Maps Prayer ID to its custom variables
+            
+            // An array of every possible hour slot in a solar day
+            const allHours = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 'night_1', 'night_2', 'night_3', 'night_4', 'night_5', 'night_6', 'night_7', 'night_8', 'night_9', 'night_10', 'night_11', 'night_12'];
+
+            // 1. Collect all prayers for the active day
+            allHours.forEach(hour => {
+                let prayerList = [];
+                if (typeof specialDates !== 'undefined' && specialDates[monthDay] && specialDates[monthDay][hour] && specialDates[monthDay][hour].prayers) {
+                    prayerList = specialDates[monthDay][hour].prayers;
+                } else if (typeof weeklySchedule !== 'undefined' && weeklySchedule[dayOfWeek] && weeklySchedule[dayOfWeek][hour] && weeklySchedule[dayOfWeek][hour].prayers) {
+                    prayerList = weeklySchedule[dayOfWeek][hour].prayers;
+                }
+
+                prayerList.forEach(item => {
+                    let prayerId = typeof item === 'string' ? item : item.id;
+                    let customVars = typeof item === 'string' ? null : item.vars;
+                    
+                    // The Map ensures we only save the FIRST occurrence of a prayer ID
+                    if (!uniquePrayers.has(prayerId)) {
+                        uniquePrayers.set(prayerId, customVars);
+                    }
+                });
+            });
+
+            // 2. Build the HTML list
+            const container = document.getElementById('todays-prayers-list');
+            let html = "";
+            
+            uniquePrayers.forEach((customVars, prayerId) => {
+                const prayerObj = prayers[prayerId];
+                if (prayerObj) {
+                    // This uses the exact same variable parser from your main display!
+                    const parsedText = parsePrayerText(prayerObj, customVars); 
+                    const title = prayerObj.title || "Prayer";
+                    
+                    html += `
+                        <details class="prayer-drawer" style="margin-bottom: 12px;">
+                            <summary style="font-weight: bold;">${title}</summary>
+                            <div class="prayer-content">${parsedText}</div>
+                        </details>
+                    `;
+                }
+            });
+            
+            if (html === "") {
+                html = "<p style='text-align: center; color: var(--text-muted);'>No prayers scheduled for today.</p>";
+            }
+            
+            container.innerHTML = html;
+        }
+		
+		// --- LIBRARY SEARCH ENGINE ---
+        function searchLibrary() {
+            const query = document.getElementById('library-search-input').value.toLowerCase().trim();
+            const resultsContainer = document.getElementById('library-search-results');
+            
+            // If the search box is empty, clear the results and stop
+            if (query === "") {
+                resultsContainer.innerHTML = "";
+                return;
+            }
+
+            let matches = [];
+
+            // 1. Collect and score the matches
+            for (const [id, prayerObj] of Object.entries(prayers)) {
+                
+                // STRICT RULE: Skip if not searchable
+                if (prayerObj.searchable !== true) continue;
+
+                const titleStr = prayerObj.title || "Prayer";
+                const titleMatch = titleStr.toLowerCase().includes(query);
+                const tagsMatch = (prayerObj.tags || []).some(tag => tag.toLowerCase().includes(query));
+                const textMatch = (prayerObj.text || "").toLowerCase().includes(query);
+
+                if (titleMatch || tagsMatch || textMatch) {
+                    // Assign relevance score (1 is best)
+                    let score = 3; // Default to text match
+                    if (titleMatch) {
+                        score = 1;
+                    } else if (tagsMatch) {
+                        score = 2;
+                    }
+
+                    matches.push({
+                        prayerObj: prayerObj,
+                        title: titleStr,
+                        score: score
+                    });
+                }
+            }
+
+            // 2. Sort the matches
+            matches.sort((a, b) => {
+                // First by relevance score (1, then 2, then 3)
+                if (a.score !== b.score) {
+                    return a.score - b.score;
+                }
+                // Tie-breaker: Alphabetical by title
+                return a.title.localeCompare(b.title);
+            });
+
+            // 3. Build the HTML output
+            let html = "";
+            
+            if (matches.length === 0) {
+                html = "<p style='text-align: center; color: var(--text-muted);'>No prayers found matching your search.</p>";
+            } else {
+                matches.forEach(match => {
+                    // Passing null forces it to use the defaultVars
+                    const parsedText = parsePrayerText(match.prayerObj, null);
+                    
+                    html += `
+                        <details class="prayer-drawer" style="margin-bottom: 12px;">
+                            <summary style="font-weight: bold;">${match.title}</summary>
+                            <div class="prayer-content">${parsedText}</div>
+                        </details>
+                    `;
+                });
+            }
+
+            resultsContainer.innerHTML = html;
+        }
+
         // --- THEME LOGIC ---
         function applyTheme(theme) {
             if (theme === 'dark') {
@@ -731,6 +925,8 @@
 
                 document.getElementById('stats-drawer').style.display = 'block';
                 
+                buildTodaysPrayersList(); // <-- Added this line!
+                
                 if (tickInterval) clearInterval(tickInterval);
                 tickInterval = setInterval(tick, 1000);
                 tick(); 
@@ -863,14 +1059,14 @@
 
             // HELPER: Automatically cascade through Special Dates -> Weekly -> Defaults
             function getSub(key, fallback = "") {
-                if (typeof specialDateSubtitles !== 'undefined' && specialDateSubtitles[monthDay] && specialDateSubtitles[monthDay][key]) {
-                    return specialDateSubtitles[monthDay][key];
+                if (typeof specialDates !== 'undefined' && specialDates[monthDay] && specialDates[monthDay][key] && specialDates[monthDay][key].subtitle) {
+                    return specialDates[monthDay][key].subtitle;
                 }
-                if (typeof weeklySubtitles !== 'undefined' && weeklySubtitles[dayOfWeek] && weeklySubtitles[dayOfWeek][key]) {
-                    return weeklySubtitles[dayOfWeek][key];
+                if (typeof weeklySchedule !== 'undefined' && weeklySchedule[dayOfWeek] && weeklySchedule[dayOfWeek][key] && weeklySchedule[dayOfWeek][key].subtitle) {
+                    return weeklySchedule[dayOfWeek][key].subtitle;
                 }
-                if (typeof defaultSubtitles !== 'undefined' && defaultSubtitles[key]) {
-                    return defaultSubtitles[key];
+                if (typeof defaultSchedule !== 'undefined' && defaultSchedule[key] && defaultSchedule[key].subtitle) {
+                    return defaultSchedule[key].subtitle;
                 }
                 return fallback;
             }
@@ -897,7 +1093,7 @@
                 // STRICT SUNSET RULE: Exact start, stays open for 15 mins
                 if (now.getTime() >= currentSunsetMs && now.getTime() <= currentSunsetMs + (15 * tempMinuteMs)) {
                     activeMarker = 12; 
-                    let subText = getSub("sunset", getSub("night", "Lord, now let your servant depart in peace."));
+                    let subText = getSub(12);
                     statusHtml = `<h2>Sunset (Vespers)</h2><p>${subText}</p>`;
                 } else {
                     // CALCULATE THE WATCHES: Applies to the remainder of the night
@@ -947,8 +1143,7 @@
 
                     if (withinBuffer) {
                         activeMarker = i;
-                        let subKey = isSunrise ? "sunrise" : (isSunset ? "sunset" : i.toString());
-                        let subText = getSub(subKey);
+                        let subText = getSub(activeMarker);
                         statusHtml = `<h2>${title}</h2>` + (subText ? `<p>${subText}</p>` : "");
                         break;
                     }
@@ -1056,21 +1251,30 @@
                     const dayOfWeek = fetchDate.getDay();
                     const monthDay = `${String(fetchDate.getMonth() + 1).padStart(2, '0')}-${String(fetchDate.getDate()).padStart(2, '0')}`;
                     
-                    let prayerIds = [];
+                    let prayerList = [];
                     
                     // 1. Check if today is a Special Date override
-                    if (typeof specialDates !== 'undefined' && specialDates[monthDay] && specialDates[monthDay][activeMarker]) {
-                        prayerIds = specialDates[monthDay][activeMarker];
+                    if (typeof specialDates !== 'undefined' && specialDates[monthDay] && specialDates[monthDay][activeMarker] && specialDates[monthDay][activeMarker].prayers) {
+                        prayerList = specialDates[monthDay][activeMarker].prayers;
                     } 
-                    // 2. Otherwise, fall back to the standard Day/Hour schedule
-                    else if (typeof prayerSchedule !== 'undefined' && prayerSchedule[dayOfWeek] && prayerSchedule[dayOfWeek][activeMarker]) {
-                        prayerIds = prayerSchedule[dayOfWeek][activeMarker];
+                    // 2. Otherwise, fall back to the Weekly schedule
+                    else if (typeof weeklySchedule !== 'undefined' && weeklySchedule[dayOfWeek] && weeklySchedule[dayOfWeek][activeMarker] && weeklySchedule[dayOfWeek][activeMarker].prayers) {
+                        prayerList = weeklySchedule[dayOfWeek][activeMarker].prayers;
                     }
 
                     // 3. If we found prayers for this hour, assemble and display them
-                    if (prayerIds.length > 0) {
-                        // Stack multiple prayers with a double line break between them
-                        let combinedPrayers = prayerIds.map(id => prayers[id]).join('\n\n\n');
+                    if (prayerList.length > 0) {
+                        let combinedPrayers = prayerList.map(item => {
+                            // Check if the item is a string ("lords_prayer") or an object with variables
+                            let prayerId = typeof item === 'string' ? item : item.id;
+                            let customVars = typeof item === 'string' ? null : item.vars;
+                            
+                            let prayerObj = prayers[prayerId];
+                            if (!prayerObj) return ""; // Failsafe if prayer doesn't exist
+                            
+                            // Parse the variables into the text!
+                            return parsePrayerText(prayerObj, customVars);
+                        }).join('\n\n\n');
                         
                         prayerContainer.innerHTML = `
                             <details class="prayer-drawer" open>
@@ -1080,12 +1284,10 @@
                         `;
                         prayerContainer.style.display = 'block';
                     } else {
-                        // No prayer for this hour, hide the container
                         prayerContainer.style.display = 'none';
                         prayerContainer.innerHTML = '';
                     }
                 } else {
-                    // Between hours, hide the container
                     prayerContainer.style.display = 'none';
                     prayerContainer.innerHTML = '';
                 }
@@ -1121,8 +1323,7 @@
                     }
 
                     if (shouldNotify && Notification.permission === 'granted') {
-                        let subKey = (exactMarker === 0) ? "sunrise" : ((exactMarker === 12) ? "sunset" : exactMarker.toString());
-                        let bodyMessage = getSub(subKey, "Pray without ceasing");
+                        let bodyMessage = getSub(exactMarker, "Pray without ceasing");
                         
                         let title = `The ${names[exactMarker]} Hour`;
                         if (exactMarker === 0) title = "Sunrise (Matins)";
