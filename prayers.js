@@ -240,7 +240,7 @@ For thine is the kingdom,
         text: `Give me, O Lord, a steadfast heart, which no unworthy thought can drag down; an unconquered heart, which no tribulation can wear out; an upright heart, which no unworthy purpose can tempt aside. Bestow upon me understanding to know you, diligence to seek you, wisdom to find you, and faithfulness that finally may embrace you. Amen.`
     },
     "mon_9": {
-        title: "",
+        title: "O God, who Sustain the World",
         attribution: "",
         style: "contemporary",
         searchable: true,
@@ -248,14 +248,14 @@ For thine is the kingdom,
         defaultVars: {},
         text: `O God, who sustain the world with your power and guide it with your love: Grant that as the day declines, your light may not fail us, but that by your grace we may finish our daily tasks and be brought safely to the evening; through Christ our Lord. Amen.`
     },
-    "annunciation_3_25": {
-        title: "Collect for the Annunciation",
-        attribution: "",
+    "justice": {
+        title: "Collect for Justice",
+        attribution: "Keith A. Kelso",
         style: "contemporary",
         searchable: true,
-        tags: ["ninth hour", "annunciation", "incarnation", "cross"],
+        tags: ["ninth hour", "discernment", "grace", "imago dei"],
         defaultVars: {},
-        text: `Pour your grace into our hearts, O Lord, that we who have known the incarnation of your Son Jesus Christ, announced by an angel to the Virgin Mary, may by his Cross and passion be brought to the glory of his resurrection; who lives and reigns with you, in the unity of the Holy Spirit, one God, now and for ever. Amen.`
+        text: `O sovereign God, source of all justice, your Word says that we will judge angels. Help us to judge and discern rightly the things of this life, and to show mercy and grace to all, who bear your image. Through the love of Jesus Christ and the power of the Holy Spirit, Amen.`
     },
     "evening_85": {
         title: "In the Evening",
@@ -918,7 +918,7 @@ To be a light to lighten the Gentiles,
         attribution: "",
         style: "contemporary",
         searchable: true,
-        tags: ["james", "prayer", "reconciliation", "saints", "holy day", "red-letter"],
+        tags: ["james", "prayer", "reconciliation", "apostle", "saints", "holy day", "red-letter"],
         defaultVars: {},
         text: `Grant, O God, that, following the example of your apostle James the Just, kinsman of our Lord, your Church may give itself continually to prayer and to the reconciliation of all who are at variance and enmity; through Jesus Christ our Lord, who lives and reigns with you and the Holy Spirit, one God, now and for ever. Amen.`
     },
